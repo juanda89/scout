@@ -1,0 +1,35 @@
+{
+  "title": "Mamás con hijos de 1 a 3 años",
+  "summary": "Mamás hispanohablantes con al menos un hijo de 12 a 36 meses hoy, contenido de maternidad, 5k-500k seguidores.",
+  "macro_filters": {
+    "life_stage": { "any_of": ["parent"] },
+    "gender": { "eq": "female" },
+    "language.primary": { "eq": "es" },
+    "followers": { "between": [5000, 500000] },
+    "brand_safety.flags": { "none_of": ["adult", "political_extreme", "hate"] }
+  },
+  "requirements": [
+    { "id": "hijo_1_3", "predicate": "child.age_mention", "rule": { "op": "between", "value": [12, 36], "derived": "child.age_months" }, "hard": true, "min_evidence": 2, "max_evidence_age_days": 600, "rationale": "Edad actual del hijo calculada desde menciones fechadas o nacimiento" },
+    { "id": "contenido_maternidad", "predicate": "content.category", "rule": { "op": "eq", "value": "maternidad" }, "hard": false, "weight": 0.4 },
+    { "id": "audiencia_femenina", "predicate": "audience.gender_female_pct", "rule": { "op": "gte", "value": 60 }, "hard": false, "weight": 0.3, "min_confidence": 0.7, "rationale": "Dato externo estimado (CreatorDB); umbral propio" },
+    { "id": "ha_hecho_patrocinios", "predicate": "sponsorship.has_history", "rule": { "op": "exists" }, "hard": false, "weight": 0.3 }
+  ],
+  "new_predicates": [
+    {
+      "key": "child.age_mention", "label": "Mención fechada de la edad de un hijo", "tier": "micro",
+      "value_type": "object", "value_schema": { "required": ["amount", "unit"], "fields": { "amount": "number", "unit": "months|years|weeks" } },
+      "temporal_kind": "point_in_time", "cardinality": "many",
+      "extraction_spec": { "provider": "claude", "modalities": ["caption", "transcript", "bio"], "claude": { "instructions": "Cada vez que la creadora mencione la edad de un hijo o hija propio (\"mi bebé de 6 meses\", \"cumple 2 años\", \"mis peques de 7 y 9\"), emite un claim por mención con amount y unit. No inferir edad por fotos." } },
+      "derivations": [{ "name": "child.age_months", "fn": "months_since_observed_plus_age", "params": {} }]
+    },
+    {
+      "key": "child.birth_event", "label": "Anuncio de nacimiento de un hijo", "tier": "micro",
+      "value_type": "object", "value_schema": { "required": ["kind"] },
+      "temporal_kind": "event", "cardinality": "many",
+      "extraction_spec": { "provider": "claude", "modalities": ["caption", "transcript"], "claude": { "instructions": "Posts que anuncian el nacimiento de un hijo propio (\"nació\", \"bienvenida\", \"ya está aquí\"). La fecha del post se toma como fecha del nacimiento." } },
+      "derivations": [{ "name": "child.age_months", "fn": "months_since_observed", "params": {} }]
+    }
+  ],
+  "budget": { "max_candidates_deep": 300, "max_usd": 120 },
+  "open_questions": ["¿Vale una mamá con un hijo en rango y otro mayor? (asumido: sí, basta uno)"]
+}

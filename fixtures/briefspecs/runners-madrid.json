@@ -1,0 +1,29 @@
+{
+  "title": "Runners de Madrid con Garmin",
+  "summary": "Hombres de 18 a 24 en Madrid, corredores de maratón, usuarios de Garmin.",
+  "macro_filters": {
+    "content.category": { "any_of": ["running", "fitness"] },
+    "gender": { "eq": "male" },
+    "age_bracket": { "any_of": ["18-24"] },
+    "location.city": { "eq": "Madrid" }
+  },
+  "requirements": [
+    { "id": "corre_maratones", "predicate": "sport.event_participation", "rule": { "op": "eq", "value": "marathon" }, "hard": true, "min_evidence": 1, "max_evidence_age_days": 540 },
+    { "id": "usa_garmin", "predicate": "wearable.brand", "rule": { "op": "eq", "value": "garmin" }, "hard": true, "min_evidence": 1 }
+  ],
+  "new_predicates": [
+    {
+      "key": "sport.event_participation", "label": "Participación en eventos deportivos", "tier": "micro",
+      "value_type": "enum", "value_schema": { "values": ["marathon", "half_marathon", "10k", "triathlon", "trail", "other"] },
+      "temporal_kind": "event", "cardinality": "many",
+      "extraction_spec": { "provider": "claude", "modalities": ["caption", "transcript"], "claude": { "instructions": "Eventos deportivos en los que la creadora participó o se prepara para participar, uno por mención." } }
+    },
+    {
+      "key": "wearable.brand", "label": "Marca de wearable que usa", "tier": "micro",
+      "value_type": "enum", "value_schema": { "values": ["garmin", "apple", "coros", "polar", "suunto", "other"] },
+      "temporal_kind": "slow", "cardinality": "one",
+      "extraction_spec": { "provider": "claude", "modalities": ["caption", "transcript", "vision"], "claude": { "instructions": "Marca del reloj o pulsera deportiva que la creadora dice usar o que aparece en pantalla." } }
+    }
+  ],
+  "budget": { "max_candidates_deep": 100, "max_usd": 40 }
+}

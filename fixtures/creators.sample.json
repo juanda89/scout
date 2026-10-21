@@ -1,0 +1,127 @@
+[
+  {
+    "platform": "instagram", "handle": "laura.mamaprimeriza", "display_name": "Laura · Mamá de Martina",
+    "bio": "Mamá de Martina 👶 | Madrid | Recetas, rutinas y maternidad real sin filtros",
+    "followers": 48200, "following": 810, "posts_count": 640,
+    "posts": [
+      { "id": "l1", "kind": "reel", "posted_at": "2025-03-14T10:00:00Z", "caption": "Hoy mi bebé cumple 6 meses y ya se sienta solita 🥹 #mamaprimeriza #bebe", "likes": 2100, "comments": 140 },
+      { "id": "l2", "kind": "post", "posted_at": "2025-09-02T18:30:00Z", "caption": "Primer añito de Martina 🎂 Un año de no dormir y de amar como nunca.", "likes": 3900, "comments": 310 },
+      { "id": "l3", "kind": "reel", "posted_at": "2026-04-10T09:15:00Z", "caption": "Con 19 meses ya corre por toda la casa. Trucos para sobrevivir a un toddler.", "likes": 1800, "comments": 95 },
+      { "id": "l4", "kind": "reel", "posted_at": "2026-09-30T12:00:00Z", "caption": "Receta de purés y sólidos para mi peque de 2 años. En colaboración con @marcadepapillas #publicidad", "likes": 1500, "comments": 70 },
+      { "id": "l5", "kind": "post", "posted_at": "2026-10-05T12:00:00Z", "caption": "Domingo de parque en el Retiro con la familia ☀️", "likes": 1200, "comments": 40 }
+    ]
+  },
+  {
+    "platform": "instagram", "handle": "carla.fit.mom", "display_name": "Carla Fit Mom",
+    "bio": "Mamá fitness 💪 Entrenadora certificada | CDMX | Rutinas postparto",
+    "followers": 112000, "following": 300, "posts_count": 980,
+    "posts": [
+      { "id": "c1", "kind": "reel", "posted_at": "2026-05-20T15:00:00Z", "caption": "Entrenar con mi hijo de 1 año y medio encima es el mejor peso extra 😂 #ad en colaboración con @ropadeportiva", "likes": 8900, "comments": 420 },
+      { "id": "c2", "kind": "reel", "posted_at": "2026-08-11T15:00:00Z", "caption": "Rutina postparto: ya 14 meses después del nacimiento de Leo y por fin siento mi core.", "likes": 7300, "comments": 380 },
+      { "id": "c3", "kind": "post", "posted_at": "2026-09-19T15:00:00Z", "caption": "Leo cumple 15 meses y yo cumplo 100 días seguidos entrenando. Código CARLA10 en @suplementos", "likes": 6100, "comments": 290 },
+      { "id": "c4", "kind": "reel", "posted_at": "2026-10-01T15:00:00Z", "caption": "Workout de 20 minutos para mamás sin tiempo. Sin equipo.", "likes": 9900, "comments": 500 }
+    ]
+  },
+  {
+    "platform": "instagram", "handle": "sofia.viaja", "display_name": "Sofía Viaja",
+    "bio": "Soltera y viajando por Colombia 🇨🇴 ✈️ Tips de viaje low cost",
+    "followers": 76000, "following": 1200, "posts_count": 420,
+    "posts": [
+      { "id": "s1", "kind": "reel", "posted_at": "2026-07-04T15:00:00Z", "caption": "Guatapé en un día: qué ver, dónde comer y cuánto gasté.", "likes": 5000, "comments": 200 },
+      { "id": "s2", "kind": "post", "posted_at": "2026-09-12T15:00:00Z", "caption": "Cartagena sin gastar una fortuna. Hilo de tips 🧵", "likes": 4300, "comments": 160 }
+    ]
+  },
+  {
+    "platform": "instagram", "handle": "mama.de.tres", "display_name": "Mamá de Tres",
+    "bio": "Mamá de tres 👧👦👧 | Valencia | Organización familiar y humor de supervivencia",
+    "followers": 33000, "following": 500, "posts_count": 1100,
+    "posts": [
+      { "id": "m1", "kind": "post", "posted_at": "2026-06-01T15:00:00Z", "caption": "Mi hijo mayor de 12 años ya me gana en altura. ¿Cuándo pasó esto?", "likes": 900, "comments": 60 },
+      { "id": "m2", "kind": "reel", "posted_at": "2026-09-05T15:00:00Z", "caption": "Vuelta al cole con los peques de 7 y 9 años. Lista de material y cero drama.", "likes": 1400, "comments": 80 },
+      { "id": "m3", "kind": "reel", "posted_at": "2026-10-02T15:00:00Z", "caption": "Cena de 15 minutos para toda la familia. Receta real, no de Pinterest.", "likes": 1100, "comments": 50 }
+    ]
+  },
+  {
+    "platform": "instagram", "handle": "ana.embarazada", "display_name": "Ana · Esperando a Mateo",
+    "bio": "Embarazada de Mateo 🤰 | Sevilla | Diario de embarazo",
+    "followers": 21000, "following": 640, "posts_count": 210,
+    "posts": [
+      { "id": "a1", "kind": "post", "posted_at": "2026-07-15T15:00:00Z", "caption": "Semana 30 de embarazo y ya no me veo los pies 🤰", "likes": 800, "comments": 70 },
+      { "id": "a2", "kind": "reel", "posted_at": "2026-09-20T15:00:00Z", "caption": "Preparando la bolsa del hospital. ¿Qué me falta?", "likes": 1200, "comments": 130 }
+    ]
+  },
+  {
+    "platform": "instagram", "handle": "pedro.runner", "display_name": "Pedro Runner",
+    "bio": "Corredor amateur 🏃‍♂️ | Madrid | Tengo 23 años y un objetivo: sub 3h",
+    "followers": 15800, "following": 400, "posts_count": 300,
+    "posts": [
+      { "id": "p1", "kind": "post", "posted_at": "2025-12-02T15:00:00Z", "caption": "Maratón de Valencia hecho: 3:12 🔥 Mi Garmin Forerunner marcó 42,4 km. A por el siguiente.", "likes": 1300, "comments": 90 },
+      { "id": "p2", "kind": "reel", "posted_at": "2026-03-01T15:00:00Z", "caption": "Empieza el plan para el maratón de Madrid. 16 semanas, 23 años y muchas ganas.", "likes": 900, "comments": 60 },
+      { "id": "p3", "kind": "reel", "posted_at": "2026-09-14T15:00:00Z", "caption": "Series en la Casa de Campo con el Garmin cantando los parciales. Rodaje largo mañana.", "likes": 700, "comments": 40 }
+    ]
+  },
+  {
+    "platform": "instagram", "handle": "marta.corre", "display_name": "Marta Corre",
+    "bio": "Corredora popular 🏃‍♀️ | Barcelona | 29 años | Media maratón es mi distancia",
+    "followers": 24000, "following": 700, "posts_count": 520,
+    "posts": [
+      { "id": "mc1", "kind": "post", "posted_at": "2026-02-09T15:00:00Z", "caption": "Media maratón de Barcelona: 1:41 y nuevo PB. Mi Apple Watch dice que casi muero.", "likes": 1500, "comments": 100 },
+      { "id": "mc2", "kind": "reel", "posted_at": "2026-08-30T15:00:00Z", "caption": "Tirada larga de domingo, 18 km. Tengo 29 años y las rodillas de 60.", "likes": 1100, "comments": 70 }
+    ]
+  },
+  {
+    "platform": "instagram", "handle": "diego.papa", "display_name": "Diego · Papá primerizo",
+    "bio": "Papá primerizo de Valentina 👨‍👧 | Monterrey, México | Crianza desde el otro lado",
+    "followers": 19000, "following": 350, "posts_count": 180,
+    "posts": [
+      { "id": "d1", "kind": "reel", "posted_at": "2026-02-14T15:00:00Z", "caption": "Mi hija cumplió 1 añito y yo cumplí un año sin dormir. Vale cada segundo.", "likes": 2000, "comments": 150 },
+      { "id": "d2", "kind": "post", "posted_at": "2026-09-01T15:00:00Z", "caption": "Papá primerizo en el parque: guía de supervivencia.", "likes": 1200, "comments": 80 }
+    ]
+  },
+  {
+    "platform": "instagram", "handle": "lucia.sincontexto", "display_name": "Lucía",
+    "bio": "Mamá | Bilbao | Café, caos y cariño",
+    "followers": 9800, "following": 900, "posts_count": 260,
+    "posts": [
+      { "id": "lu1", "kind": "post", "posted_at": "2026-08-20T15:00:00Z", "caption": "Día de parque con mi hijo. Reset mental.", "likes": 400, "comments": 20 },
+      { "id": "lu2", "kind": "reel", "posted_at": "2026-09-10T15:00:00Z", "caption": "Mi hijo no quiere dormir y yo tampoco, aparentemente.", "likes": 650, "comments": 45 }
+    ]
+  },
+  {
+    "platform": "instagram", "handle": "valeria.bebe.recien", "display_name": "Valeria · Mamá de Emma",
+    "bio": "Mamá de Emma 🎀 | Bogotá | Recién estrenada en esto",
+    "followers": 12500, "following": 450, "posts_count": 140,
+    "posts": [
+      { "id": "v1", "kind": "post", "posted_at": "2026-09-01T15:00:00Z", "caption": "Nació Emma 🎀 3,2 kg de amor puro. Bienvenida, hija.", "likes": 3000, "comments": 400 },
+      { "id": "v2", "kind": "reel", "posted_at": "2026-10-10T15:00:00Z", "caption": "Mi bebé de 5 semanas y sus primeras sonrisas (o gases, quién sabe).", "likes": 2100, "comments": 210 }
+    ]
+  },
+  {
+    "platform": "instagram", "handle": "rocio.hogar", "display_name": "Rocío · Hogar",
+    "bio": "Decoración y reformas 🏡 | Zaragoza | Mamá de Olivia",
+    "followers": 41000, "following": 600, "posts_count": 700,
+    "posts": [
+      { "id": "r1", "kind": "reel", "posted_at": "2026-01-10T15:00:00Z", "caption": "La habitación de mi hija de 3 años, antes y después. Presupuesto: 400 €.", "likes": 5200, "comments": 230 },
+      { "id": "r2", "kind": "reel", "posted_at": "2026-04-22T15:00:00Z", "caption": "Reformamos la cocina en 10 días. Todo el proceso.", "likes": 6100, "comments": 300 },
+      { "id": "r3", "kind": "post", "posted_at": "2026-09-28T15:00:00Z", "caption": "Olivia ya tiene 3 años y medio y opina sobre los cojines. Decoradora junior.", "likes": 2400, "comments": 90 }
+    ]
+  },
+  {
+    "platform": "instagram", "handle": "noelia.sin.hijos", "display_name": "Noelia",
+    "bio": "Lifestyle en Madrid | 34 años | Planes, cafés y plantas",
+    "followers": 27000, "following": 820, "posts_count": 390,
+    "posts": [
+      { "id": "n1", "kind": "post", "posted_at": "2026-06-18T15:00:00Z", "caption": "No tengo hijos y no quiero tenerlos, y mi vida está completa. Dejen de preguntar 🙂", "likes": 4100, "comments": 600 },
+      { "id": "n2", "kind": "reel", "posted_at": "2026-09-25T15:00:00Z", "caption": "Las 5 cafeterías de Madrid donde sí puedes trabajar.", "likes": 2200, "comments": 110 }
+    ]
+  },
+  {
+    "platform": "instagram", "handle": "paula.unpost", "display_name": "Paula",
+    "bio": "Mamá | Málaga | Fotos y poco más",
+    "followers": 7000, "following": 300, "posts_count": 90,
+    "posts": [
+      { "id": "pa1", "kind": "post", "posted_at": "2026-09-01T15:00:00Z", "caption": "Mi bebé de 15 meses descubriendo la arena por primera vez 🏖️", "likes": 500, "comments": 30 },
+      { "id": "pa2", "kind": "post", "posted_at": "2026-10-03T15:00:00Z", "caption": "Atardecer en Málaga.", "likes": 300, "comments": 10 }
+    ]
+  }
+]
