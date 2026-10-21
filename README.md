@@ -57,7 +57,7 @@ Cada proveedor corre en vivo si su clave está en `.env`; si falta, corre un moc
 
 Una sola clave de OpenRouter cubre los dos primeros roles. Los modelos se cambian con `LLM_MODEL_REASONING` y `LLM_MODEL_CLASSIFY` (cualquier id de OpenRouter). `SCOUT_MOCK=1` fuerza mock aunque haya claves; `npm run scout -- llm-probe` comprueba que los modelos configurados responden.
 
-Costo medido en vivo con Gemini sobre las 13 creadoras de prueba: 0,09 USD la clasificación macro completa (197 claims), 0,03 USD la compilación de un brief y unos 0,005 USD por creadora en la extracción profunda. El grueso del costo por corrida es la demografía de audiencia de CreatorDB (0,40 USD por finalista en pay-as-you-go).
+Costo medido en vivo sobre las 13 creadoras de prueba: la clasificación macro completa cuesta 0,003 USD con Jev (117 llamadas, 242 ms cada una) o 0,09 USD con Gemini 3.5-flash-lite; la compilación de un brief con Gemini 3.8-flash, 0,03 USD; la extracción profunda, unos 0,005 USD por creadora. Las facetas que producen Jev y Gemini son casi idénticas. El grueso del costo por corrida es la demografía de audiencia de CreatorDB (0,40 USD por finalista en pay-as-you-go).
 
 Los mocks existen para probar el pipeline, no la calidad de extracción. Con claves reales, el compilador y el extractor son genéricos: cualquier predicado nuevo que proponga un brief se extrae sin tocar código.
 

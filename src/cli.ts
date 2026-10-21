@@ -17,6 +17,7 @@ import { validateSpec } from "./brief/validate.js";
 import { approveSpec, createBrief, getSpec, resolveBriefId, saveSpec } from "./brief/store.js";
 import { runBrief } from "./funnel/run.js";
 import { llm } from "./llm/client.js";
+import { jev } from "./extract/jev.js";
 import { z } from "zod/v4";
 
 const program = new Command().name("scout").description("Scouting determinista de creadoras (ver docs/ARQUITECTURA.md)");
@@ -129,6 +130,15 @@ brief.command("run <brief>").description("Ejecuta el embudo con la última spec 
 program.command("llm-probe").description("Prueba los modelos configurados (clasificación y razonamiento) con una llamada mínima")
   .action(async () => {
     const S = z.object({ items: z.array(z.object({ id: z.string(), life_stage: z.enum(["parent", "pregnant", "unknown"]), confidence: z.number(), country: z.string().nullable() })) });
+    const j = jev();
+    if (j.mode === "live") {
+      const t = Date.now();
+      const r = await j.ask("Hoy mi bebé cumple 6 meses y ya se sienta solita | Madrid", {
+        life_stage: { type: "choice", instructions: "Etapa de vida de la autora", criteria: { parent: "Habla de su hijo o hija", pregnant: "Embarazada", unknown: "Sin evidencia" }, none_labels: ["unknown"] },
+        es_patrocinio: { type: "noul", instructions: "El texto es una colaboración pagada", none_labels: [] },
+      });
+      console.log(`jev: live ${Date.now() - t}ms in=${r.inputTokens} cost=$${r.costUsd.toFixed(6)}\n  ${JSON.stringify(r.answers)}`);
+    } else console.log("jev: sin clave (mock)");
     for (const role of ["classify", "reasoning"] as const) {
       const c = llm(role);
       if (!c) { console.log(`${role}: sin proveedor (mock)`); continue; }
