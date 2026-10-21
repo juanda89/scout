@@ -18,6 +18,7 @@ import { approveSpec, createBrief, getSpec, resolveBriefId, saveSpec } from "./b
 import { runBrief } from "./funnel/run.js";
 import { llm } from "./llm/client.js";
 import { jev } from "./extract/jev.js";
+import { creatordbUsage, enrichAudience } from "./enrich/creatordb.js";
 import { z } from "zod/v4";
 
 const program = new Command().name("scout").description("Scouting determinista de creadoras (ver docs/ARQUITECTURA.md)");
@@ -140,6 +141,10 @@ program.command("llm-probe").description("Prueba los modelos configurados (clasi
       });
       console.log(`jev: live ${Date.now() - t}ms in=${r.inputTokens} cost=$${r.costUsd.toFixed(6)}\n  ${JSON.stringify(r.answers)}`);
     } else console.log("jev: sin clave (mock)");
+    if (isLive("creatordb")) {
+      const u = await creatordbUsage();
+      console.log(`creatordb: live  créditos disponibles=${u.creditsAvailable} (plan ${u.planCreditsAvailable}, comprados ${u.purchasedCreditsAvailable})`);
+    } else console.log("creatordb: sin clave (mock)");
     for (const role of ["classify", "reasoning"] as const) {
       const c = llm(role);
       if (!c) { console.log(`${role}: sin proveedor (mock)`); continue; }
@@ -147,6 +152,17 @@ program.command("llm-probe").description("Prueba los modelos configurados (clasi
       const r = await c.complete({ system: "Clasifica cada texto. Responde solo JSON.", user: JSON.stringify([{ id: "a", text: "Hoy mi bebé cumple 6 meses | Madrid" }, { id: "b", text: "Guatapé en un día: qué ver" }]), schema: S, schemaName: "cls" });
       console.log(`${role}: ${c.provider}/${c.model} ${Date.now() - t}ms in=${r.inputTokens} out=${r.outputTokens} cost=$${r.costUsd.toFixed(6)}\n  ${JSON.stringify(r.data)}`);
     }
+  });
+
+program.command("enrich <handle>").description("Trae la demografía de audiencia (CreatorDB) de una creadora y la guarda como claims")
+  .option("--force", "ignora cobertura previa")
+  .action(async (handle: string, o: { force?: boolean }) => {
+    const c = await findCreatorByHandle(handle);
+    if (!c) throw new Error("creadora no encontrada");
+    const r = await enrichAudience(c.id, c.handle, { force: o.force });
+    if (!r.ran) { console.log("ya estaba cubierta (usa --force para repetir)"); return; }
+    const { raw, ...d } = r.data!;
+    console.log(`${JSON.stringify(d)}  costo=${r.costUsd.toFixed(2)} USD`);
   });
 
 program.command("claims <handle>").description("Lista los claims de una creadora con su evidencia")

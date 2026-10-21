@@ -46,6 +46,8 @@ El modo por perfil trae bio, seguidores y hasta 12 posts recientes por cuenta en
 Otros comandos útiles:
 
 ```bash
+npm run scout -- enrich nasa                      # demografía de audiencia de un perfil (CreatorDB)
+npm run scout -- llm-probe                        # comprueba Jev, CreatorDB (créditos) y los modelos LLM
 npm run scout -- claims laura.mamaprimeriza --predicate child.age_mention
 npm run scout -- query child.age_mention
 npm run scout -- review <run_id> paula.unpost accept --by jd --predicate child.age_mention --value '{"amount":16,"unit":"months"}'
@@ -62,7 +64,7 @@ Cada proveedor corre en vivo si su clave está en `.env`; si falta, corre un moc
 | Razonamiento: compilar briefs y extraer hechos | `OPENROUTER_API_KEY` (o `ANTHROPIC_API_KEY`) | `google/gemini-3.8-flash` vía OpenRouter | Specs precompiladas en `fixtures/briefspecs/` y extracción por expresiones regulares para los predicados de ejemplo |
 | Clasificación macro | `TYPESAFE_API_KEY` (Jev) o la misma clave LLM | Jev si hay clave; si no `google/gemini-3.5-flash-lite` | Palabras clave en español |
 | Ingesta | `APIFY_TOKEN` | Apify | Solo fixtures |
-| Audiencia | `CREATORDB_API_KEY` | CreatorDB | Números deterministas por handle |
+| Audiencia | `CREATORDB_API_KEY` | CreatorDB API v3 (`POST /instagram/audience`, 10 créditos por perfil) | Números deterministas por handle |
 
 Una sola clave de OpenRouter cubre los dos primeros roles. Los modelos se cambian con `LLM_MODEL_REASONING` y `LLM_MODEL_CLASSIFY` (cualquier id de OpenRouter). `SCOUT_MOCK=1` fuerza mock aunque haya claves; `npm run scout -- llm-probe` comprueba que los modelos configurados responden.
 
@@ -84,7 +86,7 @@ Los mocks existen para probar el pipeline, no la calidad de extracción. Con cla
 
 ## Pendiente para pasar de prototipo a producto
 
-- Verificar el endpoint y los campos reales de CreatorDB (`src/enrich/creatordb.ts` asume una forma).
+- CreatorDB devuelve países en ISO alpha-3 (`USA`, `ESP`) y el vocabulario macro usa alpha-2; unificar cuando se use `audience.top_country` en reglas. El precio por crédito se ajusta con `CREATORDB_USD_PER_CREDIT` (0,04 PAYG, 0,025 Pro).
 - Transcripción de video y descripción visual (`content_items.transcript`, `vision_description`) aún no se rellenan; los predicados ya los aceptan como modalidad.
 - `location.city` es el único predicado macro que usa Claude; en volumen conviene moverlo a un modelo más barato o a Jev con una lista cerrada de ciudades.
 - Embeddings (`content_items.embedding`) para lookalikes y moodboard: columna lista, sin uso.

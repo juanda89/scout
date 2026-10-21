@@ -1,53 +1,90 @@
-import { config, isLive, PRICES } from "../config.js";
+import { config, isLive } from "../config.js";
 import { insertClaims, listClaims } from "../extract/claims.js";
 import { isCovered, recordJob } from "../extract/jobs.js";
 import { byPriority } from "../rules/resolve.js";
 
 /**
- * Demografía de audiencia vía CreatorDB (pay-as-you-go, 10 créditos por consulta de audiencia).
- * La forma exacta del endpoint y de la respuesta debe verificarse contra la documentación de CreatorDB
- * antes de usar en vivo; aquí se asume GET {base}/instagram/audience?username=... con cabecera de API key.
+ * Demografía de audiencia vía CreatorDB API v3 (docs.creatordb.app).
+ *  POST https://apiv3.creatordb.app/instagram/audience  { uniqueId }  cabecera api-key
+ *  Respuesta: data.audienceGender.{maleRatio,femaleRatio}, data.audienceLocations[{country alpha-3, share}],
+ *             data.audienceAgeBreakdown[{ageRange, share}], data.audienceAvgAge; creditsUsed (10 el paquete completo).
+ *  Un perfil desconocido devuelve data con nulls y 0 créditos.
  */
-const BASE = process.env.CREATORDB_BASE_URL ?? "https://api.creatordb.app/v1";
-const AUTH_HEADER = process.env.CREATORDB_AUTH_HEADER ?? "x-api-key";
+const BASE = process.env.CREATORDB_BASE_URL ?? "https://apiv3.creatordb.app";
+const USD_PER_CREDIT = Number(process.env.CREATORDB_USD_PER_CREDIT ?? 0.04); // pay-as-you-go; 0.025 en Pro, 0.01 en Enterprise
 
-export interface AudienceData { gender_female_pct: number; top_country: string; age_25_34_pct: number; raw?: unknown }
-
-async function fetchLive(handle: string): Promise<AudienceData> {
-  const res = await fetch(`${BASE}/instagram/audience?username=${encodeURIComponent(handle)}`, { headers: { [AUTH_HEADER]: config.creatordbKey } });
-  if (!res.ok) throw new Error(`CreatorDB ${res.status}: ${await res.text()}`);
-  const j = (await res.json()) as Record<string, unknown>;
-  // Normalización defensiva: los nombres de campo reales pueden diferir.
-  const gender = (j.gender ?? j.audience_gender ?? {}) as Record<string, number>;
-  const ages = (j.age ?? j.audience_age ?? {}) as Record<string, number>;
-  const countries = (j.countries ?? j.audience_countries ?? {}) as Record<string, number>;
-  const top = Object.entries(countries).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "unknown";
-  return { gender_female_pct: pct(gender.female ?? gender.f), top_country: top, age_25_34_pct: pct(ages["25-34"]), raw: j };
+export interface AudienceData {
+  gender_female_pct: number | null;
+  top_country: string | null;
+  age_25_34_pct: number | null;
+  avg_age: number | null;
+  creditsUsed: number;
+  raw?: unknown;
 }
 
-function pct(v: unknown): number { const n = Number(v); return Number.isFinite(n) ? (n <= 1 ? n * 100 : n) : 0; }
+interface CdbAudienceResponse {
+  success: boolean;
+  errorCode?: string;
+  errorDescription?: string;
+  creditsUsed?: number;
+  creditsAvailable?: number;
+  data?: {
+    audienceLocations?: Array<{ country: string; share: number }> | null;
+    audienceGender?: { maleRatio: number; femaleRatio: number } | null;
+    audienceAvgAge?: number | null;
+    audienceAgeBreakdown?: Array<{ ageRange: string; share: number }> | null;
+  };
+}
+
+async function cdb<T>(path: string, init: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, { ...init, headers: { "api-key": config.creatordbKey, "Content-Type": "application/json", ...(init.headers ?? {}) } });
+  const text = await res.text();
+  let j: unknown;
+  try { j = JSON.parse(text); } catch { throw new Error(`CreatorDB ${res.status}: ${text.slice(0, 300)}`); }
+  if (!res.ok) throw new Error(`CreatorDB ${res.status}: ${JSON.stringify(j).slice(0, 300)}`);
+  return j as T;
+}
+
+export async function creatordbUsage(): Promise<{ creditsAvailable: number; planCreditsAvailable: number; purchasedCreditsAvailable: number }> {
+  return cdb(`/usage`, { method: "GET" });
+}
+
+export async function fetchAudienceLive(handle: string): Promise<AudienceData> {
+  const j = await cdb<CdbAudienceResponse>(`/instagram/audience`, { method: "POST", body: JSON.stringify({ uniqueId: handle.replace(/^@/, "") }) });
+  if (!j.success) throw new Error(`CreatorDB ${j.errorCode}: ${j.errorDescription}`);
+  const d = j.data ?? {};
+  const pct = (x: number | null | undefined) => (typeof x === "number" ? Number((x * 100).toFixed(2)) : null);
+  return {
+    gender_female_pct: pct(d.audienceGender?.femaleRatio),
+    top_country: d.audienceLocations?.[0]?.country ?? null,
+    age_25_34_pct: pct(d.audienceAgeBreakdown?.find((a) => a.ageRange === "25-34")?.share),
+    avg_age: d.audienceAvgAge ?? null,
+    creditsUsed: j.creditsUsed ?? 0,
+    raw: j,
+  };
+}
 
 function hash(s: string): number { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; }
 
-async function fetchMock(creatorId: string, handle: string): Promise<AudienceData> {
+async function fetchAudienceMock(creatorId: string, handle: string): Promise<AudienceData> {
   const h = hash(handle);
   const countryClaims = (await listClaims(creatorId, ["location.country"])).filter((c) => c.status !== "superseded").sort(byPriority);
-  return { gender_female_pct: 50 + (h % 45), top_country: String(countryClaims[0]?.value ?? "ES"), age_25_34_pct: 25 + (h % 30) };
+  return { gender_female_pct: 50 + (h % 45), top_country: String(countryClaims[0]?.value ?? "ESP"), age_25_34_pct: 25 + (h % 30), avg_age: 30, creditsUsed: 10 };
 }
 
-export async function enrichAudience(creatorId: string, handle: string): Promise<{ ran: boolean; costUsd: number }> {
+export async function enrichAudience(creatorId: string, handle: string, opts: { force?: boolean } = {}): Promise<{ ran: boolean; costUsd: number; data?: AudienceData }> {
   const key = { creatorId, predicateKey: "audience.gender_female_pct", version: 1, scope: "creatordb", provider: "creatordb" };
-  if (await isCovered(key)) return { ran: false, costUsd: 0 };
+  if (!opts.force && await isCovered(key)) return { ran: false, costUsd: 0 };
   const live = isLive("creatordb");
-  const data = live ? await fetchLive(handle) : await fetchMock(creatorId, handle);
+  const data = live ? await fetchAudienceLive(handle) : await fetchAudienceMock(creatorId, handle);
   const now = new Date();
-  const base = { creator_id: creatorId, predicate_version: 1, polarity: "affirms" as const, observed_at: now, evidence_content_id: null, evidence_modality: "external_api" as const, confidence: 0.9, extractor: { provider: "creatordb", mode: live ? "live" : "mock" } };
-  await insertClaims([
-    { ...base, predicate_key: "audience.gender_female_pct", value: data.gender_female_pct, evidence_span: "CreatorDB audience report" },
-    { ...base, predicate_key: "audience.top_country", value: data.top_country, evidence_span: "CreatorDB audience report" },
-    { ...base, predicate_key: "audience.age_25_34_pct", value: data.age_25_34_pct, evidence_span: "CreatorDB audience report" },
-  ]);
-  const cost = PRICES.creatordbAudienceUsd;
+  const base = { creator_id: creatorId, predicate_version: 1, polarity: "affirms" as const, observed_at: now, evidence_content_id: null, evidence_modality: "external_api" as const, confidence: 0.9, extractor: { provider: "creatordb", mode: live ? "live" : "mock" }, evidence_span: "CreatorDB audience report" };
+  const claims = [];
+  if (data.gender_female_pct != null) claims.push({ ...base, predicate_key: "audience.gender_female_pct", value: data.gender_female_pct });
+  if (data.top_country) claims.push({ ...base, predicate_key: "audience.top_country", value: data.top_country });
+  if (data.age_25_34_pct != null) claims.push({ ...base, predicate_key: "audience.age_25_34_pct", value: data.age_25_34_pct });
+  await insertClaims(claims);
+  const cost = live ? data.creditsUsed * USD_PER_CREDIT : 10 * USD_PER_CREDIT;
   await recordJob(key, "done", cost);
-  return { ran: true, costUsd: cost };
+  return { ran: true, costUsd: cost, data };
 }
