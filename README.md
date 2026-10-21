@@ -9,7 +9,7 @@ Prototipo de scouting determinista de creadoras para agencias de influencers. La
 | Esquema SQL | `db/migrations/001_init.sql` | creators, content_items, predicates, claims, creator_facets, briefs, brief_specs, brief_runs, run_results, review_decisions, extraction_jobs |
 | Tipos | `src/schema/*.ts` | Predicate, Claim, BriefSpec, Rule (zod) |
 | Registro de predicados | `src/registry/` | Vocabulario macro inicial (`seed.ts`) y repositorio |
-| Ingesta | `src/ingest/` | Fixtures locales y Apify (`apidojo/instagram-scraper`) |
+| Ingesta | `src/ingest/` | Fixtures locales y Apify (`apify/instagram-scraper`, modo `details` para perfiles y `posts` para hashtags) |
 | LLM | `src/llm/client.ts` | Abstracción con salida estructurada: OpenRouter (Gemini por defecto) o Anthropic |
 | Extracción | `src/extract/` | Clasificador macro (Jev, LLM barato o mock) y extractor estructurado con evidencia (LLM o mock) |
 | Motor de reglas | `src/rules/` | Derivaciones temporales, resolución de conflictos, evaluación. Puro, sin IA, con tests |
@@ -33,6 +33,15 @@ npm run scout -- brief compile fixtures/briefs/mamas-1-3.txt
 npm run scout -- brief approve "Mamás" --by tu-nombre
 npm run scout -- brief run "Mamás"
 ```
+
+Ingesta real con Apify (con `APIFY_TOKEN`):
+
+```bash
+npm run scout -- ingest apify --profiles handle1,handle2
+npm run scout -- ingest apify --hashtags mamaprimeriza,bebe --limit 100
+```
+
+El modo por perfil trae bio, seguidores y hasta 12 posts recientes por cuenta en un solo item. Algunas cuentas muy grandes devuelven la lista de posts vacía sin sesión; el perfil se guarda igual y se puede completar después con `--hashtags` o con otro actor (`APIFY_INSTAGRAM_ACTOR`). El plan gratuito de Apify incluye 5 USD de uso al mes, suficiente para probar; para cientos de perfiles por campaña conviene el plan Starter.
 
 Otros comandos útiles:
 

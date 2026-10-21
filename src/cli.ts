@@ -63,8 +63,9 @@ ingest.command("apify").description("Ingesta vía Apify (requiere APIFY_TOKEN)")
   .option("--profiles <list>", "handles separados por coma")
   .option("--limit <n>", "máximo de items", "200")
   .action(async (o: { hashtags?: string; profiles?: string; limit: string }) => {
-    const creators = await ingestFromApify({ hashtags: o.hashtags?.split(","), profiles: o.profiles?.split(","), limit: Number(o.limit) });
+    const creators = await ingestFromApify({ hashtags: o.hashtags?.split(","), profiles: o.profiles?.split(","), limit: Number(o.limit), log: (m) => console.log("  " + m) });
     const r = await storeCreators(creators);
+    for (const c of creators) console.log(`  @${c.handle.padEnd(22)} ${String(c.followers ?? "?").padStart(9)} seg.  ${c.posts.length} posts  bio: ${(c.bio ?? "").replace(/\n/g, " ").slice(0, 70)}`);
     console.log(`creadoras: ${r.creators}, posts: ${r.posts}`);
   });
 
