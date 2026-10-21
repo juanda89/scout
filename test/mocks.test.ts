@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { mockJevAnswer } from "../src/extract/jev.js";
-import { claude } from "../src/extract/claude.js";
+import { extractor } from "../src/extract/extractor.js";
 import { PredicateSchema } from "../src/schema/predicate.js";
 import { normalizeApifyItems } from "../src/ingest/apify.js";
 
-process.env.SCOUT_MOCK = "1";
 
 describe("mock Jev", () => {
   const spec = { type: "choice" as const, instructions: "", criteria: {}, none_labels: [] };
@@ -25,7 +24,7 @@ describe("mock Claude", () => {
   const ageMention = PredicateSchema.parse({ key: "child.age_mention", label: "", tier: "micro", value_type: "object", value_schema: { required: ["amount", "unit"] }, temporal_kind: "point_in_time", cardinality: "many", extraction_spec: { provider: "claude", modalities: ["caption"] } });
   const item = (id: string, caption: string) => ({ id, creator_id: "c", kind: "post", posted_at: new Date("2026-05-20T00:00:00Z"), caption, transcript: null, vision_description: null });
   it("extrae menciones de edad con unidad", async () => {
-    const r = await claude().extract("x", [item("1", "Entrenar con mi hijo de 1 año y medio encima"), item("2", "Leo cumple 15 meses"), item("3", "los peques de 7 y 9 años")], [ageMention]);
+    const r = await extractor().extract("x", [item("1", "Entrenar con mi hijo de 1 año y medio encima"), item("2", "Leo cumple 15 meses"), item("3", "los peques de 7 y 9 años")], [ageMention]);
     const values = r.claims.map((c) => c.value);
     expect(values).toContainEqual({ amount: 18, unit: "months" });
     expect(values).toContainEqual({ amount: 15, unit: "months" });

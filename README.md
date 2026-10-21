@@ -10,7 +10,8 @@ Prototipo de scouting determinista de creadoras para agencias de influencers. La
 | Tipos | `src/schema/*.ts` | Predicate, Claim, BriefSpec, Rule (zod) |
 | Registro de predicados | `src/registry/` | Vocabulario macro inicial (`seed.ts`) y repositorio |
 | Ingesta | `src/ingest/` | Fixtures locales y Apify (`apidojo/instagram-scraper`) |
-| Extracción | `src/extract/` | Jev (clasificación masiva) y Claude (extracción estructurada con evidencia); ambos con modo mock determinista |
+| LLM | `src/llm/client.ts` | Abstracción con salida estructurada: OpenRouter (Gemini por defecto) o Anthropic |
+| Extracción | `src/extract/` | Clasificador macro (Jev, LLM barato o mock) y extractor estructurado con evidencia (LLM o mock) |
 | Motor de reglas | `src/rules/` | Derivaciones temporales, resolución de conflictos, evaluación. Puro, sin IA, con tests |
 | Compilador de briefs | `src/brief/` | Brief en texto -> BriefSpec aprobable; validación contra el registro |
 | Embudo | `src/funnel/` | Filtro macro SQL -> cobertura -> extracción dirigida -> reglas -> enriquecimiento (CreatorDB) -> resultados |
@@ -47,14 +48,16 @@ npm test
 
 Cada proveedor corre en vivo si su clave está en `.env`; si falta, corre un mock determinista:
 
-| Proveedor | Variable | Mock |
-|---|---|---|
-| Claude (compilador de briefs, extracción profunda) | `ANTHROPIC_API_KEY` | Specs precompiladas en `fixtures/briefspecs/` y extracción por expresiones regulares para los predicados de ejemplo |
-| Jev (clasificación macro) | `TYPESAFE_API_KEY` | Palabras clave en español |
-| Apify (ingesta) | `APIFY_TOKEN` | Solo fixtures |
-| CreatorDB (audiencia) | `CREATORDB_API_KEY` | Números deterministas por handle |
+| Rol | Variable | Por defecto en vivo | Mock |
+|---|---|---|---|
+| Razonamiento: compilar briefs y extraer hechos | `OPENROUTER_API_KEY` (o `ANTHROPIC_API_KEY`) | `google/gemini-3.8-flash` vía OpenRouter | Specs precompiladas en `fixtures/briefspecs/` y extracción por expresiones regulares para los predicados de ejemplo |
+| Clasificación macro | `TYPESAFE_API_KEY` (Jev) o la misma clave LLM | Jev si hay clave; si no `google/gemini-3.5-flash-lite` | Palabras clave en español |
+| Ingesta | `APIFY_TOKEN` | Apify | Solo fixtures |
+| Audiencia | `CREATORDB_API_KEY` | CreatorDB | Números deterministas por handle |
 
-`SCOUT_MOCK=1` fuerza mock aunque haya claves.
+Una sola clave de OpenRouter cubre los dos primeros roles. Los modelos se cambian con `LLM_MODEL_REASONING` y `LLM_MODEL_CLASSIFY` (cualquier id de OpenRouter). `SCOUT_MOCK=1` fuerza mock aunque haya claves; `npm run scout -- llm-probe` comprueba que los modelos configurados responden.
+
+Costo medido en vivo con Gemini sobre las 13 creadoras de prueba: 0,09 USD la clasificación macro completa (197 claims), 0,03 USD la compilación de un brief y unos 0,005 USD por creadora en la extracción profunda. El grueso del costo por corrida es la demografía de audiencia de CreatorDB (0,40 USD por finalista en pay-as-you-go).
 
 Los mocks existen para probar el pipeline, no la calidad de extracción. Con claves reales, el compilador y el extractor son genéricos: cualquier predicado nuevo que proponga un brief se extrae sin tocar código.
 

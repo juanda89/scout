@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { closeDb, db, migrate } from "./db.js";
 import { isLive } from "./config.js";
+import { classifier } from "./extract/classifier.js";
+import { extractor } from "./extract/extractor.js";
 import { listPredicates, predicateMap, seedRegistry } from "./registry/registry.js";
 import { loadFixtureCreators } from "./ingest/fixtures.js";
 import { ingestFromApify } from "./ingest/apify.js";
@@ -14,11 +16,13 @@ import { compileBrief } from "./brief/compile.js";
 import { validateSpec } from "./brief/validate.js";
 import { approveSpec, createBrief, getSpec, resolveBriefId, saveSpec } from "./brief/store.js";
 import { runBrief } from "./funnel/run.js";
+import { llm } from "./llm/client.js";
+import { z } from "zod/v4";
 
 const program = new Command().name("scout").description("Scouting determinista de creadoras (ver docs/ARQUITECTURA.md)");
 
 function modes(): string {
-  return (["claude", "jev", "apify", "creatordb"] as const).map((p) => `${p}=${isLive(p) ? "live" : "mock"}`).join(" ");
+  return `clasificador=${classifier().label} extractor=${extractor().label} apify=${isLive("apify") ? "live" : "mock"} creatordb=${isLive("creatordb") ? "live" : "mock"}`;
 }
 
 async function allCreators(): Promise<Array<{ id: string; handle: string }>> {
@@ -119,6 +123,18 @@ brief.command("run <brief>").description("Ejecuta el embudo con la última spec 
         const req = s.spec.requirements.find((q) => q.id === x.requirement_id)!;
         console.log(`    ${req.hard ? "[duro] " : "[blando]"} ${x.requirement_id.padEnd(22)} ${x.verdict.padEnd(7)} ${x.reason}${x.values.length ? "  valores=" + JSON.stringify(x.values) : ""}`);
       }
+    }
+  });
+
+program.command("llm-probe").description("Prueba los modelos configurados (clasificación y razonamiento) con una llamada mínima")
+  .action(async () => {
+    const S = z.object({ items: z.array(z.object({ id: z.string(), life_stage: z.enum(["parent", "pregnant", "unknown"]), confidence: z.number(), country: z.string().nullable() })) });
+    for (const role of ["classify", "reasoning"] as const) {
+      const c = llm(role);
+      if (!c) { console.log(`${role}: sin proveedor (mock)`); continue; }
+      const t = Date.now();
+      const r = await c.complete({ system: "Clasifica cada texto. Responde solo JSON.", user: JSON.stringify([{ id: "a", text: "Hoy mi bebé cumple 6 meses | Madrid" }, { id: "b", text: "Guatapé en un día: qué ver" }]), schema: S, schemaName: "cls" });
+      console.log(`${role}: ${c.provider}/${c.model} ${Date.now() - t}ms in=${r.inputTokens} out=${r.outputTokens} cost=$${r.costUsd.toFixed(6)}\n  ${JSON.stringify(r.data)}`);
     }
   });
 

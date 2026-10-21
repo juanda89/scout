@@ -6,6 +6,20 @@ export const config = {
   typesafeKey: process.env.TYPESAFE_API_KEY ?? "",
   apifyToken: process.env.APIFY_TOKEN ?? "",
   creatordbKey: process.env.CREATORDB_API_KEY ?? "",
+  openrouterKey: process.env.OPENROUTER_API_KEY ?? "",
+  /** auto: openrouter si hay clave, si no anthropic, si no mock. */
+  llmProvider: (process.env.LLM_PROVIDER ?? "auto") as "auto" | "openrouter" | "anthropic",
+  /** Modelo para razonar (compilar briefs, extracción profunda) y para clasificar (macro), por proveedor. */
+  llmModelReasoning: {
+    openrouter: process.env.LLM_MODEL_REASONING ?? "google/gemini-3.8-flash",
+    anthropic: process.env.CLAUDE_MODEL ?? "claude-opus-5-5",
+  },
+  llmModelClassify: {
+    openrouter: process.env.LLM_MODEL_CLASSIFY ?? "google/gemini-3.5-flash-lite",
+    anthropic: process.env.CLAUDE_MODEL_CLASSIFY ?? "claude-haiku-5-5",
+  },
+  /** Clasificador macro: auto = jev si hay clave, si no llm, si no mock. */
+  classifier: (process.env.CLASSIFIER ?? "auto") as "auto" | "jev" | "llm" | "mock",
   claudeModel: process.env.CLAUDE_MODEL ?? "claude-opus-5-5",
   jevModel: process.env.JEV_MODEL ?? "jev-latest",
   defaultMinConfidence: Number(process.env.DEFAULT_MIN_CONFIDENCE ?? 0.85),

@@ -41,7 +41,7 @@ export async function enrichAudience(creatorId: string, handle: string): Promise
   const live = isLive("creatordb");
   const data = live ? await fetchLive(handle) : await fetchMock(creatorId, handle);
   const now = new Date();
-  const base = { creator_id: creatorId, predicate_version: 1, polarity: "affirms" as const, observed_at: now, evidence_content_id: null, evidence_modality: "external_api" as const, confidence: 0.8, extractor: { provider: "creatordb", mode: live ? "live" : "mock" } };
+  const base = { creator_id: creatorId, predicate_version: 1, polarity: "affirms" as const, observed_at: now, evidence_content_id: null, evidence_modality: "external_api" as const, confidence: 0.9, extractor: { provider: "creatordb", mode: live ? "live" : "mock" } };
   await insertClaims([
     { ...base, predicate_key: "audience.gender_female_pct", value: data.gender_female_pct, evidence_span: "CreatorDB audience report" },
     { ...base, predicate_key: "audience.top_country", value: data.top_country, evidence_span: "CreatorDB audience report" },

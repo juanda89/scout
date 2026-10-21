@@ -1,7 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
-import { config, isLive, PRICES } from "../config.js";
+import { PRICES } from "../config.js";
+import { llm, type LlmClient } from "../llm/client.js";
 import type { Predicate } from "../schema/predicate.js";
 import type { ContentItem } from "./content.js";
 import { textOf } from "./content.js";
@@ -18,8 +17,9 @@ export interface ExtractedClaim {
 
 export interface ExtractionResult { claims: ExtractedClaim[]; inputTokens: number; outputTokens: number; costUsd: number }
 
-export interface ClaudeExtractor {
+export interface Extractor {
   readonly mode: "live" | "mock";
+  readonly label: string;
   extract(handle: string, items: ContentItem[], predicates: Predicate[]): Promise<ExtractionResult>;
 }
 
@@ -47,36 +47,25 @@ Reglas estrictas:
 7. Un claim por evidencia. Si varios posts prueban lo mismo, emite un claim por post.
 Si no hay evidencia para un predicado, simplemente no lo incluyas.`;
 
-class LiveClaude implements ClaudeExtractor {
+class LlmExtractor implements Extractor {
   readonly mode = "live" as const;
-  private client = new Anthropic({ apiKey: config.anthropicKey });
+  readonly label: string;
+  constructor(private client: LlmClient) { this.label = `${client.provider}/${client.model}`; }
   async extract(handle: string, items: ContentItem[], predicates: Predicate[]): Promise<ExtractionResult> {
     const content = items.flatMap((it) => textOf(it).map((t) => ({ id: it.id, kind: it.kind, posted_at: it.posted_at?.toISOString().slice(0, 10) ?? null, modality: t.modality, text: t.text })));
     const preds = predicates.map((p) => ({ key: p.key, label: p.label, value_type: p.value_type, value_schema: p.value_schema, cardinality: p.cardinality, temporal_kind: p.temporal_kind, instructions: p.extraction_spec.claude?.instructions ?? "" }));
-    const res = await this.client.messages.parse({
-      model: config.claudeModel,
-      max_tokens: 16000,
+    const res = await this.client.complete({
       system: SYSTEM,
-      output_config: { format: zodOutputFormat(OutputSchema), effort: "medium" },
-      messages: [{
-        role: "user",
-        content: `Creadora: @${handle}\n\nPREDICADOS A EXTRAER:\n${JSON.stringify(preds, null, 1)}\n\nCONTENIDO (id, tipo, fecha, modalidad, texto):\n${JSON.stringify(content, null, 1)}`,
-      }],
+      user: `Creadora: @${handle}\n\nPREDICADOS A EXTRAER:\n${JSON.stringify(preds, null, 1)}\n\nCONTENIDO (id, tipo, fecha, modalidad, texto):\n${JSON.stringify(content, null, 1)}`,
+      schema: OutputSchema, schemaName: "claims", maxTokens: 16000,
     });
-    const inputTokens = res.usage.input_tokens;
-    const outputTokens = res.usage.output_tokens;
-    const costUsd = (inputTokens / 1e6) * PRICES.claudeInPerMTok + (outputTokens / 1e6) * PRICES.claudeOutPerMTok;
-    if (res.stop_reason === "refusal" || !res.parsed_output) {
-      console.warn(`[claude] sin salida parseable para @${handle} (stop_reason=${res.stop_reason})`);
-      return { claims: [], inputTokens, outputTokens, costUsd };
-    }
     const claims: ExtractedClaim[] = [];
-    for (const c of res.parsed_output.claims) {
+    for (const c of res.data.claims) {
       let value: unknown;
       try { value = JSON.parse(c.value_json); } catch { continue; }
       claims.push({ ...c, value, confidence: Math.max(0, Math.min(1, c.confidence)) });
     }
-    return { claims, inputTokens, outputTokens, costUsd };
+    return { claims, inputTokens: res.inputTokens, outputTokens: res.outputTokens, costUsd: res.costUsd };
   }
 }
 
@@ -131,14 +120,15 @@ const HANDLERS: Record<string, Handler> = {
   },
 };
 
-class MockClaude implements ClaudeExtractor {
+class MockExtractor implements Extractor {
   readonly mode = "mock" as const;
+  readonly label = "mock";
   async extract(_handle: string, items: ContentItem[], predicates: Predicate[]): Promise<ExtractionResult> {
     const claims: ExtractedClaim[] = [];
     let chars = 0;
     for (const p of predicates) {
       const h = HANDLERS[p.key];
-      if (!h) { console.warn(`[claude:mock] sin handler para ${p.key}; en vivo Claude lo extraería`); continue; }
+      if (!h) { console.warn(`[extractor:mock] sin handler para ${p.key}; en vivo el LLM lo extraería`); continue; }
       for (const it of items) for (const t of textOf(it)) {
         if (!p.extraction_spec.modalities.includes(t.modality)) continue;
         chars += t.text.length;
@@ -151,8 +141,8 @@ class MockClaude implements ClaudeExtractor {
   }
 }
 
-let instance: ClaudeExtractor | null = null;
-export function claude(): ClaudeExtractor {
-  if (!instance) instance = isLive("claude") ? new LiveClaude() : new MockClaude();
+let instance: Extractor | null = null;
+export function extractor(): Extractor {
+  if (!instance) { const c = llm("reasoning"); instance = c ? new LlmExtractor(c) : new MockExtractor(); }
   return instance;
 }

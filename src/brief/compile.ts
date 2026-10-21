@@ -1,10 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod/v4";
-import { config, isLive } from "../config.js";
+import { llm } from "../llm/client.js";
 import { BriefSpecSchema, type BriefSpec, type BriefSpecInput } from "../schema/brief.js";
 import type { Predicate } from "../schema/predicate.js";
 
@@ -40,7 +38,12 @@ const CompileOutput = z.object({
     modalities: z.array(z.enum(["caption", "bio", "transcript", "vision"])),
     jev_question_json: z.string().nullable(),
     claude_instructions: z.string().nullable(),
-    derivations_json: z.string(),
+    /** Hechos virtuales que este predicado produce. Vacío si no aplica. */
+    derivations: z.array(z.object({
+      name: z.string(),
+      fn: z.enum(["months_since_observed", "months_since_observed_plus_age", "years_since_observed_plus_age", "value_field"]),
+      field: z.string().nullable(),
+    })),
   })),
   open_questions: z.array(z.string()),
 });
@@ -50,8 +53,13 @@ especificación determinista. Reglas:
 1. MACRO primero: todo lo que se pueda expresar con los predicados macro existentes va en macro_filters (son filtros SQL baratos).
    Claves especiales: "followers" y "er_estimate" son numéricas (between/gte/lte).
 2. Lo específico va en requirements. Reutiliza predicados existentes siempre que cubran el pedido; solo propone new_predicates si ninguno sirve.
-3. Para atributos que envejecen (edad de hijos, tiempo desde un evento) usa un predicado con derivación y evalúa la regla con "derived".
-   Derivaciones disponibles: months_since_observed (evento fechado), months_since_observed_plus_age (mención de edad {amount, unit}), years_since_observed_plus_age, value_field.
+3. Para atributos que envejecen (edad de hijos, tiempo desde un evento) usa predicados con derivación y evalúa la regla con "derived" (el nombre del hecho virtual, ej. "child.age_months") y un operador numérico.
+   Derivaciones (fn): months_since_observed = meses desde la fecha del post (eventos: nacimiento, boda, mudanza);
+   months_since_observed_plus_age = la mención de edad {"amount": N, "unit": "months"|"years"|"weeks"} más los meses transcurridos desde el post;
+   years_since_observed_plus_age = lo mismo en años; value_field = toma el campo "field" del valor.
+   Ejemplo: predicado child.age_mention (value_type object, value_schema {"required":["amount","unit"]}, cardinality many, temporal point_in_time,
+   derivations [{"name":"child.age_months","fn":"months_since_observed_plus_age","field":null}]) y requisito {predicate:"child.age_mention", op:"between", value_json:"[12,36]", derived:"child.age_months"}.
+   Dos predicados distintos pueden derivar el mismo nombre (una mención de edad y un anuncio de nacimiento); la regla los suma como evidencia.
 4. Requisitos duros: min_evidence 2 por defecto si el error es costoso; blandos con weight que sume 1.
 5. Predicados nuevos: key en snake.case con punto, enum cerrado cuando sea posible, provider "jev" si es clasificable con una pregunta cerrada (elige type noul/choice/score y escribe criteria), "claude" si requiere extraer un valor libre o estructurado.
 6. Lo que no esté claro en el brief va en open_questions, no se inventa.
@@ -78,7 +86,7 @@ function toSpec(o: z.infer<typeof CompileOutput>): BriefSpecInput {
         ...(p.jev_question_json ? { jev: JSON.parse(p.jev_question_json) } : {}),
         ...(p.claude_instructions ? { claude: { instructions: p.claude_instructions } } : {}),
       },
-      derivations: JSON.parse(p.derivations_json),
+      derivations: p.derivations.map((d) => ({ name: d.name, fn: d.fn, params: d.field ? { field: d.field } : {} })),
     })),
     open_questions: o.open_questions,
   };
@@ -87,19 +95,16 @@ function toSpec(o: z.infer<typeof CompileOutput>): BriefSpecInput {
 export interface CompileResult { spec: BriefSpec; compiledBy: Record<string, unknown> }
 
 export async function compileBrief(text: string, existing: Predicate[], title?: string): Promise<CompileResult> {
-  if (!isLive("claude")) return compileMock(text, title);
-  const client = new Anthropic({ apiKey: config.anthropicKey });
+  const client = llm("reasoning");
+  if (!client) return compileMock(text, title);
   const registry = existing.map((p) => ({ key: p.key, tier: p.tier, label: p.label, value_type: p.value_type, values: p.value_schema.values ?? null, cardinality: p.cardinality, derivations: p.derivations.map((d) => d.name) }));
-  const res = await client.messages.parse({
-    model: config.claudeModel,
-    max_tokens: 16000,
+  const res = await client.complete({
     system: SYSTEM,
-    output_config: { format: zodOutputFormat(CompileOutput), effort: "high" },
-    messages: [{ role: "user", content: `REGISTRO DE PREDICADOS EXISTENTES:\n${JSON.stringify(registry, null, 1)}\n\nBRIEF:\n${text}${title ? `\n\nTítulo sugerido: ${title}` : ""}` }],
+    user: `REGISTRO DE PREDICADOS EXISTENTES:\n${JSON.stringify(registry, null, 1)}\n\nBRIEF:\n${text}${title ? `\n\nTítulo sugerido: ${title}` : ""}`,
+    schema: CompileOutput, schemaName: "brief_spec", maxTokens: 16000,
   });
-  if (!res.parsed_output) throw new Error(`El compilador no devolvió una especificación válida (stop_reason=${res.stop_reason})`);
-  const spec = BriefSpecSchema.parse(toSpec(res.parsed_output));
-  return { spec, compiledBy: { provider: "claude", model: config.claudeModel, usage: res.usage } };
+  const spec = BriefSpecSchema.parse(toSpec(res.data));
+  return { spec, compiledBy: { provider: client.provider, model: client.model, inputTokens: res.inputTokens, outputTokens: res.outputTokens, costUsd: res.costUsd } };
 }
 
 /** Sin clave: busca una spec precompilada en fixtures/briefspecs por título o por coincidencia de palabras. */
@@ -118,5 +123,5 @@ function compileMock(text: string, title?: string): CompileResult {
       return { spec, compiledBy: { provider: "mock", fixture: file } };
     }
   }
-  throw new Error("Modo mock: no hay spec precompilada para este brief. Configura ANTHROPIC_API_KEY para compilar briefs nuevos.");
+  throw new Error("Modo mock: no hay spec precompilada para este brief. Configura OPENROUTER_API_KEY o ANTHROPIC_API_KEY para compilar briefs nuevos.");
 }
