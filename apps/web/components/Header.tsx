@@ -7,7 +7,7 @@ import { signOut } from "@/auth";
 export interface Crumb { label: string; href?: string }
 export interface RunningHint { id: string; pct: number; count: number }
 
-export function Header({ viewer, crumbs, running, right, steps }: { viewer: Viewer; crumbs: Crumb[]; running?: RunningHint | null; right?: React.ReactNode; steps?: React.ReactNode }) {
+export function Header({ viewer, crumbs, running, right, steps, newDisabled }: { viewer: Viewer; crumbs: Crumb[]; running?: RunningHint | null; right?: React.ReactNode; steps?: React.ReactNode; newDisabled?: string }) {
   return (
     <header className="glass-hd" style={{ flex: "none", minHeight: 60, padding: "10px 24px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px 16px", position: "relative", zIndex: 2 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
@@ -34,10 +34,17 @@ export function Header({ viewer, crumbs, running, right, steps }: { viewer: View
                 <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{running.pct}%</span>
               </Link>
             )}
-            <Link href="/scoutings/new" className="btn">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" /></svg>
-              <span>New scouting</span>
-            </Link>
+            {newDisabled ? (
+              <span className="btn" aria-disabled="true" title={newDisabled} style={{ cursor: "not-allowed" }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" /></svg>
+                <span>New scouting</span>
+              </span>
+            ) : (
+              <Link href="/scoutings/new" className="btn">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" /></svg>
+                <span>New scouting</span>
+              </Link>
+            )}
             <form action={async () => { "use server"; await signOut({ redirectTo: "/signin" }); }}>
               <button type="submit" aria-label={`${viewer.name}’s account · sign out`} title={`${viewer.email} · Sign out`} style={{ width: 36, height: 36, borderRadius: "50%", border: "1px solid var(--line)", background: "#F4F4F5", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", cursor: "pointer" }}>{viewer.initial}</button>
             </form>

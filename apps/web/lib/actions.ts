@@ -5,6 +5,7 @@ import { createScouting, getScouting, updateScouting, toggleShortlist, addEvent 
 import { extractFields } from "@scout/core/scouting/fields";
 import { ScoutingFieldsSchema, type FieldSource } from "@scout/core/scouting/types";
 import { enqueueScouting } from "@scout/core/scouting/queue";
+import { isQuotaError, quotaFor } from "@scout/core/scouting/quota";
 import { withViewer } from "./session";
 
 /** Paso Describe -> Confirm: extrae campos y guarda un borrador. */
@@ -45,7 +46,12 @@ export async function launchScouting(id: string): Promise<{ ok: false; error: st
   if (!f.location) missing.push("Location");
   if (f.budget == null) missing.push("Total budget");
   if (missing.length) return { ok: false, error: `Still needed: ${missing.join(", ")}` };
-  await updateScouting(id, { status: "queued" });
+  try {
+    await updateScouting(id, { status: "queued" });
+  } catch (e) {
+    if (isQuotaError(e)) { const q = await quotaFor(s.owner_id ?? 0).catch(() => null); return { ok: false, error: `You’ve used your ${q?.limit ?? ""} included scoutings. Contact us to get more.` }; }
+    throw e;
+  }
   await addEvent(id, null, "Scouting queued");
   return { ok: true };
   });

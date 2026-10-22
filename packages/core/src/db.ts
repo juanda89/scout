@@ -110,5 +110,7 @@ export async function migrate(): Promise<string[]> {
     client.release();
   }
   await ensureAppRole();
+  const { syncQuotaSettings } = await import("./scouting/quota.js");
+  await syncQuotaSettings().catch((e) => console.warn("[quota] no se pudieron sincronizar los ajustes:", e instanceof Error ? e.message : e));
   return applied;
 }
