@@ -15,7 +15,7 @@ URL pública: `https://dvize5gk9sjfs.cloudfront.net`. Origen: `http://100.63.14.
 - AWS: perfil local `scout` en `~/.aws/credentials` (usuario IAM `ai-scoutting`). Las claves pasaron por el chat: **rotarlas** en IAM cuando termine la configuración.
 - SSH: `~/.ssh/scout-lightsail.pem` (par de claves `scout-lightsail` en Lightsail), usuario `ubuntu`.
 - Variables de producción: `.env.prod` en la raíz (ignorado por git). Contiene las claves de proveedores, `POSTGRES_PASSWORD`, `AUTH_SECRET`, `DEV_LOGIN_SECRET`, `AUTH_URL` y `APP_URL`.
-- Acceso a la app: Google OAuth activo (proyecto de Google Cloud `scoutting-login`, cliente "Scout web"; `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en `.env.prod`, `DEV_LOGIN=0`). Redirect URI: `https://dvize5gk9sjfs.cloudfront.net/api/auth/callback/google`. Entra solo quien esté en `ALLOWED_EMAILS` o en `ALLOWED_DOMAIN`. Páginas públicas: `/privacy` y `/terms` (textos parametrizados por `LEGAL_ENTITY`, `LEGAL_CONTACT_EMAIL`, `LEGAL_JURISDICTION`).
+- Acceso a la app: Google OAuth activo (proyecto de Google Cloud `scoutting-login`, cliente "Scout web"; `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en `.env.prod`, `DEV_LOGIN=0`). Redirect URI: `https://dvize5gk9sjfs.cloudfront.net/api/auth/callback/google`. Desde el 2026-10-22 `ALLOWED_EMAILS` está vacío: entra cualquier cuenta de Google, cada una ve solo lo suyo (RLS) y tiene el cupo de scoutings; `ADMIN_EMAILS` no tiene límite. Páginas públicas: `/privacy` y `/terms` (textos parametrizados por `LEGAL_ENTITY`, `LEGAL_CONTACT_EMAIL`, `LEGAL_JURISDICTION`).
 - Consola de Google (proyecto `scoutting-login`): marca "Scout", enlaces de inicio, privacidad y términos apuntando a la URL de CloudFront, dominio autorizado `dvize5gk9sjfs.cloudfront.net`, sin scopes sensibles, y app **publicada** ("In production") el 2026-10-22. Al cambiar de dominio hay que actualizar enlaces, dominio autorizado y redirect URIs del cliente "Scout web".
 
 ## Aislamiento por usuario (RLS)
@@ -25,6 +25,12 @@ URL pública: `https://dvize5gk9sjfs.cloudfront.net`. Origen: `http://100.63.14.
 - El worker y las migraciones usan el rol administrador (`scout`), que no está sujeto a RLS porque procesa los scoutings de todos. El rol `scout_app` y sus permisos los crea `ensureAppRole()` a partir de `APP_DB_PASSWORD`, al migrar y al arrancar el worker.
 - Las tablas compartidas (creadoras, contenido, claims, registro de predicados) no tienen RLS: son el índice común que todos los scoutings consultan.
 - Quién puede entrar lo decide Auth.js (`ALLOWED_EMAILS` / `ALLOWED_DOMAIN`). Con ambas vacías entra cualquier cuenta de Google y cada usuario ve solo lo suyo.
+
+## Cupo de scoutings por usuario
+
+- `SCOUT_QUOTA_PER_USER` (2 por defecto) y `ADMIN_EMAILS` (sin límite) se sincronizan a la tabla `app_settings` al migrar y al arrancar el worker. `users.quota_override` permite un cupo individual.
+- Lo aplica el trigger `trg_scouting_quota` al pasar un scouting de borrador a lanzado: cuenta los scoutings del dueño que no sean borrador ni cancelados y rechaza con `quota_exceeded` si alcanzó el cupo. La web muestra el cupo en la lista, bloquea "New scouting" al agotarlo y traduce el error al lanzar.
+- Para dar más cupo a alguien: `UPDATE users SET quota_override = 10 WHERE email = '...'` en la base, o añadir el correo a `ADMIN_EMAILS` y redesplegar.
 
 ## Operar
 

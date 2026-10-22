@@ -6,7 +6,7 @@ import { initials } from "@/lib/format";
 
 export interface ListRow { id: string; title: string; status: "running" | "done" | "failed"; date: string; plats: string; loc: string; count: number; avg: number | null; best: number | null; top: string[]; stage: number; stageTitle: string; pct: number; stageProgress: number; error: string | null }
 
-export function ScoutingsList({ rows }: { rows: ListRow[] }) {
+export function ScoutingsList({ rows, note, noteTone = "muted" }: { rows: ListRow[]; note?: string; noteTone?: "muted" | "warn" }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "run" | "done">("all");
   const ql = q.trim().toLowerCase();
@@ -22,6 +22,7 @@ export function ScoutingsList({ rows }: { rows: ListRow[] }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <h1 style={{ margin: 0, fontSize: 26, lineHeight: 1.2, fontWeight: 600, letterSpacing: "-0.025em" }}>Scoutings</h1>
           <p style={{ margin: 0, fontSize: 14, color: "var(--ink-3)" }}>Your creator searches and what we found for each brief.</p>
+          {note && <p style={{ margin: "2px 0 0", fontSize: 13, color: noteTone === "warn" ? "var(--orange-ink)" : "var(--muted)" }}>{note}</p>}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
           <label className="in" style={{ height: 36, width: 260, maxWidth: "100%", display: "flex", alignItems: "center", gap: 8, cursor: "text" }}>

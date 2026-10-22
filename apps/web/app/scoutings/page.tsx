@@ -30,10 +30,7 @@ export default async function ScoutingsPage() {
     <Shell fx={0.5} fy={0.04}>
       <Header viewer={viewer} crumbs={[{ label: "Scoutings" }]} running={running} newDisabled={exhausted ? `You’ve used your ${quota.limit} scoutings` : undefined} />
       <main style={{ flex: 1, width: "100%", maxWidth: 1120, margin: "0 auto", padding: "32px 24px 64px", display: "flex", flexDirection: "column", gap: 24 }}>
-        {!quota.unlimited && (
-          <p style={{ margin: "-8px 0 0", fontSize: 13, color: exhausted ? "var(--orange-ink)" : "var(--muted)" }}>{exhausted ? `You’ve used your ${quota.limit} included scoutings. Contact us to get more.` : `${quota.used} of ${quota.limit} included scoutings used · ${quota.remaining} left.`}</p>
-        )}
-        <ScoutingsList rows={rows} />
+        <ScoutingsList rows={rows} note={quota.unlimited ? undefined : exhausted ? `You’ve used your ${quota.limit} included scoutings. Contact us to get more.` : `${quota.used} of ${quota.limit} included scoutings used · ${quota.remaining} left.`} noteTone={exhausted ? "warn" : "muted"} />
       </main>
     </Shell>
   );
