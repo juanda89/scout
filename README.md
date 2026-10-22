@@ -13,7 +13,7 @@ Scouting determinista de creadoras para agencias de influencers. La IA extrae **
 
 Flujo de producto: **Describe** (texto libre, chips de lo detectado) → **Confirm the brief** (campos detectados, requeridos y sugeridos, figura con la descripción marcada) → **Create scouting** (se encola) → **Scouting in progress** (Orb por etapa, contadores, actividad en vivo, early finds) → **Results** (ranking por fit, panel con cómo se construye el score, pros y contras, shortlist, CSV).
 
-Variables de entorno de la web en `.env.example` (`AUTH_SECRET`, `ALLOWED_EMAILS`/`ALLOWED_DOMAIN`, `GOOGLE_CLIENT_ID/SECRET`). Sin credenciales de Google aparece un sign-in de desarrollo que acepta los correos permitidos.
+Cada usuario ve solo sus scoutings: Row Level Security en Postgres con el rol `scout_app` para la web y `app.user_id` por petición (ver `docs/DESPLIEGUE.md`). Variables de entorno de la web en `.env.example` (`AUTH_SECRET`, `ALLOWED_EMAILS`/`ALLOWED_DOMAIN`, `GOOGLE_CLIENT_ID/SECRET`). Sin credenciales de Google aparece un sign-in de desarrollo que acepta los correos permitidos.
 
 ## Motor (packages/core)
 

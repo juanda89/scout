@@ -18,6 +18,14 @@ URL pública: `https://dvize5gk9sjfs.cloudfront.net`. Origen: `http://100.63.14.
 - Acceso a la app: Google OAuth activo (proyecto de Google Cloud `scoutting-login`, cliente "Scout web"; `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en `.env.prod`, `DEV_LOGIN=0`). Redirect URI: `https://dvize5gk9sjfs.cloudfront.net/api/auth/callback/google`. Entra solo quien esté en `ALLOWED_EMAILS` o en `ALLOWED_DOMAIN`. Páginas públicas: `/privacy` y `/terms` (textos parametrizados por `LEGAL_ENTITY`, `LEGAL_CONTACT_EMAIL`, `LEGAL_JURISDICTION`).
 - Consola de Google (proyecto `scoutting-login`): marca "Scout", enlaces de inicio, privacidad y términos apuntando a la URL de CloudFront, dominio autorizado `dvize5gk9sjfs.cloudfront.net`, sin scopes sensibles, y app **publicada** ("In production") el 2026-10-22. Al cambiar de dominio hay que actualizar enlaces, dominio autorizado y redirect URIs del cliente "Scout web".
 
+## Aislamiento por usuario (RLS)
+
+- La web se conecta con el rol `scout_app` (sin privilegios de DDL ni superusuario). Cada petición autenticada corre dentro de una transacción con `app.user_id` fijado al usuario de Auth.js (`runAsUser` en `packages/core/src/db.ts`, `withViewer` en `apps/web/lib/session.ts`).
+- Políticas (`packages/db/migrations/003_rls.sql`): `scoutings` solo visible y escribible por su `owner_id`; `scouting_stages`, `scouting_events`, `scouting_results` y `shortlist` heredan la visibilidad del scouting padre. Sin `app.user_id` no se ve ninguna fila.
+- El worker y las migraciones usan el rol administrador (`scout`), que no está sujeto a RLS porque procesa los scoutings de todos. El rol `scout_app` y sus permisos los crea `ensureAppRole()` a partir de `APP_DB_PASSWORD`, al migrar y al arrancar el worker.
+- Las tablas compartidas (creadoras, contenido, claims, registro de predicados) no tienen RLS: son el índice común que todos los scoutings consultan.
+- Quién puede entrar lo decide Auth.js (`ALLOWED_EMAILS` / `ALLOWED_DOMAIN`). Con ambas vacías entra cualquier cuenta de Google y cada usuario ve solo lo suyo.
+
 ## Operar
 
 ```bash
