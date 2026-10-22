@@ -42,7 +42,7 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
             <p style={{ margin: 0, fontSize: 12, color: "var(--muted)", textAlign: "center" }}>{devNeedsSecret ? "Temporary access while Google sign-in is being set up." : "Google sign-in appears here once GOOGLE_CLIENT_ID is configured."}</p>
           </form>
         )}
-        <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: "var(--muted)", textAlign: "center", textWrap: "pretty" }}>By continuing you agree to the <a href="#" style={{ textDecoration: "underline" }}>Terms</a> and <a href="#" style={{ textDecoration: "underline" }}>Privacy Policy</a>.</p>
+        <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: "var(--muted)", textAlign: "center", textWrap: "pretty" }}>By continuing you agree to the <a href="/terms" style={{ textDecoration: "underline" }}>Terms</a> and <a href="/privacy" style={{ textDecoration: "underline" }}>Privacy Policy</a>.</p>
         </section>
       </main>
     </div>
