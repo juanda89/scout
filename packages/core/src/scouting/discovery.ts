@@ -229,7 +229,9 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
   const usedSeeds = new Set<string>(), usedHubs = new Set<string>(), usedTags = new Set<string>();
   const primaryCats = ((ctx.spec.macro_filters["content.category"]?.any_of as string[] | undefined) ?? []).slice(0, 1);
   const topicWords = (await nicheWords(ctx.fields.topics)).map((w) => normCity(w).replace(/\s+/g, "")).filter((w) => w.length >= 4);
-  const isTopical = (tag: string) => topicWords.some((w) => tag.includes(w));
+  // Un hashtag es del tema si ES la palabra, termina en ella o la combina con otra del tema o de la zona:
+  // "comidacallejeramedellin" y "medellingourmet" sí; "paisajes" (contiene "paisa") no.
+  const isTopical = (tag: string) => topicWords.some((w) => tag === w || tag.endsWith(w) || (tag.includes(w) && (topicWords.some((o) => o !== w && tag.includes(o)) || hasGeoTerm(tag))));
   for (let round = 1; round <= 4 && !done(); round++) {
     const beforeRound = verified.size;
     try {

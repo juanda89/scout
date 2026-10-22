@@ -12,8 +12,11 @@ export const LATAM_A2 = ["MX", "CO", "AR", "CL", "PE", "EC", "VE", "UY", "PY", "
 /** Porcentaje de audiencia dentro de los países objetivo. */
 export function audienceInCountries(locations: Record<string, number> | null, countries: string[]): number | null {
   if (!locations || !countries.length) return null;
+  const entries = Object.entries(locations);
+  // Sin desglose (informe vacío) no es "0 % en el país": es "sin dato", y el fit no debe castigarlo.
+  if (!entries.length || entries.reduce((a, [, v]) => a + (Number(v) || 0), 0) <= 0) return null;
   const targets = new Set(countries.map((c) => A2_TO_A3[c] ?? c));
-  return Number(Object.entries(locations).filter(([k]) => targets.has(k)).reduce((a, [, v]) => a + v, 0).toFixed(1));
+  return Number(entries.filter(([k]) => targets.has(k)).reduce((a, [, v]) => a + v, 0).toFixed(1));
 }
 
 /** Porcentaje de audiencia dentro del rango de edad, prorrateando los buckets parcialmente cubiertos. */
