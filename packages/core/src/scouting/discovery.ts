@@ -41,7 +41,8 @@ const GENERIC_TAGS = new Set(["food", "foodie", "foodies", "foodporn", "streetfo
 const LANG3: Record<string, string> = { Spanish: "spa", English: "eng", Portuguese: "por" };
 
 export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResult> {
-  const target = Math.max(30, Math.min(150, ctx.wanted * 8));
+  // Seis candidatas macro por creadora pedida bastan para que las etapas finas elijan (mínimo 15, máximo 120).
+  const target = Math.max(15, Math.min(120, ctx.wanted * 6));
   const maxCost = ctx.maxCostUsd ?? Number(process.env.SCOUT_DISCOVERY_MAX_USD ?? 3);
   const macro = (await listPredicates()).filter((p) => p.tier === "macro");
   const strategies: StrategyRun[] = [];
@@ -106,8 +107,9 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
     for (const [vname, input, maxPages] of variants) {
       let offset = 0;
       const bands = vname === "size+country" ? followerBands(input.followersMin, input.followersMax, maxPages) : null;
+      let dry = 0;   // páginas seguidas sin candidatas nuevas: una persona cambiaría de estrategia
       for (let page = 0; page < maxPages; page++) {
-        if (await enough() || overBudget()) break;
+        if (await enough() || overBudget() || dry >= 2) break;
         try {
           const band = bands?.[page];
           const r = await searchCreators({ ...input, ...(band ? { followersMin: band[0], followersMax: band[1] } : {}), pageSize: 50, offset: band ? 0 : offset });
@@ -116,7 +118,8 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
           if (!handles.length) { strategies.push({ strategy: `creatordb:${vname}`, found: 0, newProfiles: 0, passing: 0, costUsd: r.costUsd }); cost += r.costUsd; break; }
           const ing = isLive("apify") ? await ingestFromApify({ profiles: handles.slice(0, 50), maxPostsPerProfile: 12, log: ctx.log }) : { creators: [], costUsd: 0, runs: [] };
           const creators = ing.creators.length ? ing.creators : r.hits.map((h) => ({ platform: "instagram" as const, handle: h.handle, display_name: h.displayName, followers: h.followers, avatar_url: h.avatarUrl, posts: [], discovered_via: `creatordb:${vname}` }));
-          await absorb(`creatordb:${vname}`, { filters: input, page: page + 1 }, creators, r.costUsd + ing.costUsd);
+          const run = await absorb(`creatordb:${vname}`, { filters: input, page: page + 1 }, creators, r.costUsd + ing.costUsd);
+          dry = run.passing > 0 ? 0 : dry + 1;
           if (band) continue;
           if (r.nextOffset == null) break;
           offset = r.nextOffset;

@@ -146,7 +146,7 @@ Buscar publicaciones por hashtag encuentra negocios, no creadoras: quien publica
 | 4 | **Hashtags localizados** | Solo semillas con nombre de lugar o suficientemente específicas; nunca genéricas como #streetfood. | Apify por post |
 | 5 | **Segunda bola de nieve** | Con lo aprendido en las rondas anteriores. | |
 
-Cada estrategia registra en `discovery_runs` cuántos perfiles trajo, cuántos nuevos pasaron los filtros macro y cuánto costó. El bucle se detiene al alcanzar unas ocho candidatas por creadora pedida (mínimo 30, máximo 150) o al agotar el presupuesto de descubrimiento (`SCOUT_DISCOVERY_MAX_USD`, 3 USD por defecto).
+Cada estrategia registra en `discovery_runs` cuántos perfiles trajo, cuántos nuevos pasaron los filtros macro y cuánto costó. El bucle se detiene al alcanzar seis candidatas macro por creadora pedida (mínimo 15, máximo 120), abandona una variante tras dos páginas seguidas sin candidatas nuevas, o al agotar el presupuesto de descubrimiento (`SCOUT_DISCOVERY_MAX_USD`, 3 USD por defecto).
 
 Clasificación con control de costo: primero Jev sobre bio y captions (centavos); la extracción de ciudad con LLM solo si idioma y país encajan con el brief y las señales determinísticas no la dieron ya. Si un proveedor falla (503, límite de tasa), el cliente de OpenRouter reintenta con espera exponencial y modelos de respaldo; un perfil que aun así no se pudo clasificar queda en el índice para la siguiente corrida y la estrategia no se pierde.
 
