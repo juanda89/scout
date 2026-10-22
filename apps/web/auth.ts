@@ -12,6 +12,9 @@ import { pool } from "@/lib/pool";
 const allowedEmails = (process.env.ALLOWED_EMAILS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
 const allowedDomain = (process.env.ALLOWED_DOMAIN ?? "").trim().toLowerCase();
 const hasGoogle = !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET;
+const devSecret = process.env.DEV_LOGIN_SECRET ?? "";
+/** El sign-in de desarrollo solo existe sin Google o con DEV_LOGIN=1; en producción exige además DEV_LOGIN_SECRET. */
+const devEnabled = (!hasGoogle || process.env.DEV_LOGIN === "1") && (process.env.NODE_ENV !== "production" || !!devSecret);
 
 export function isAllowed(email?: string | null): boolean {
   if (!email) return false;
@@ -22,14 +25,15 @@ export function isAllowed(email?: string | null): boolean {
 
 const providers: NextAuthConfig["providers"] = [];
 if (hasGoogle) providers.push(Google({ allowDangerousEmailAccountLinking: true }));
-if (!hasGoogle || process.env.DEV_LOGIN === "1") {
+if (devEnabled) {
   providers.push(Credentials({
     id: "dev",
     name: "Development sign-in",
-    credentials: { email: { label: "Email", type: "email" } },
+    credentials: { email: { label: "Email", type: "email" }, secret: { label: "Access code", type: "password" } },
     async authorize(c) {
       const email = String(c?.email ?? "").trim().toLowerCase();
       if (!email || !isAllowed(email)) return null;
+      if (devSecret && String(c?.secret ?? "") !== devSecret) return null;
       const { rows } = await pool.query(`INSERT INTO users (email, name) VALUES ($1, $2) ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email RETURNING id, email, name`, [email, email.split("@")[0]]);
       return { id: String(rows[0].id), email: rows[0].email, name: rows[0].name };
     },
@@ -49,4 +53,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
 });
 
-export const authMode = hasGoogle ? "google" : "dev";
+export const authMode: "google" | "dev" | "none" = hasGoogle ? "google" : devEnabled ? "dev" : "none";
+export const devNeedsSecret = !!devSecret;

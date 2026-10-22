@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth, authMode, signIn } from "@/auth";
+import { auth, authMode, devNeedsSecret, signIn } from "@/auth";
 import { Wordmark } from "@/components/Logo";
 import { Orb } from "@/components/Orb";
 import { HudRings } from "@/components/HudRings";
@@ -33,11 +33,13 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
             </button>
           </form>
         )}
+        {authMode === "none" && <p style={{ margin: 0, fontSize: 13, color: "var(--muted)", textAlign: "center" }}>Sign-in is not configured yet. Set GOOGLE_CLIENT_ID or DEV_LOGIN_SECRET.</p>}
         {authMode === "dev" && (
-          <form style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }} action={async (fd: FormData) => { "use server"; await signIn("dev", { email: String(fd.get("email") ?? ""), redirectTo: callbackUrl }); }}>
+          <form style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }} action={async (fd: FormData) => { "use server"; await signIn("dev", { email: String(fd.get("email") ?? ""), secret: String(fd.get("secret") ?? ""), redirectTo: callbackUrl }); }}>
             <input name="email" type="email" required placeholder="you@agency.com" className="in" aria-label="Email" />
-            <button type="submit" className="btn btn-lg" style={{ width: "100%" }}>Continue (development sign-in)</button>
-            <p style={{ margin: 0, fontSize: 12, color: "var(--muted)", textAlign: "center" }}>Google sign-in appears here once GOOGLE_CLIENT_ID is configured.</p>
+            {devNeedsSecret && <input name="secret" type="password" required placeholder="Access code" className="in" aria-label="Access code" />}
+            <button type="submit" className="btn btn-lg" style={{ width: "100%" }}>Continue</button>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--muted)", textAlign: "center" }}>{devNeedsSecret ? "Temporary access while Google sign-in is being set up." : "Google sign-in appears here once GOOGLE_CLIENT_ID is configured."}</p>
           </form>
         )}
         <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: "var(--muted)", textAlign: "center", textWrap: "pretty" }}>By continuing you agree to the <a href="#" style={{ textDecoration: "underline" }}>Terms</a> and <a href="#" style={{ textDecoration: "underline" }}>Privacy Policy</a>.</p>
