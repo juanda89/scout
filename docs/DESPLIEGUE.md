@@ -16,7 +16,7 @@ URL pública: `https://dvize5gk9sjfs.cloudfront.net`. Origen: `http://100.63.14.
 - SSH: `~/.ssh/scout-lightsail.pem` (par de claves `scout-lightsail` en Lightsail), usuario `ubuntu`.
 - Variables de producción: `.env.prod` en la raíz (ignorado por git). Contiene las claves de proveedores, `POSTGRES_PASSWORD`, `AUTH_SECRET`, `DEV_LOGIN_SECRET`, `AUTH_URL` y `APP_URL`.
 - Acceso a la app: Google OAuth activo (proyecto de Google Cloud `scoutting-login`, cliente "Scout web"; `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en `.env.prod`, `DEV_LOGIN=0`). Redirect URI: `https://dvize5gk9sjfs.cloudfront.net/api/auth/callback/google`. Entra solo quien esté en `ALLOWED_EMAILS` o en `ALLOWED_DOMAIN`. Páginas públicas: `/privacy` y `/terms` (textos parametrizados por `LEGAL_ENTITY`, `LEGAL_CONTACT_EMAIL`, `LEGAL_JURISDICTION`).
-- Pendiente en la consola de Google (requiere sesión del dueño): marca, enlaces y "Publish app" para salir del modo Testing; ver `docs/HANDOFF_GOOGLE_OAUTH.md`, parte C.
+- Consola de Google (proyecto `scoutting-login`): marca "Scout", enlaces de inicio, privacidad y términos apuntando a la URL de CloudFront, dominio autorizado `dvize5gk9sjfs.cloudfront.net`, sin scopes sensibles, y app **publicada** ("In production") el 2026-10-22. Al cambiar de dominio hay que actualizar enlaces, dominio autorizado y redirect URIs del cliente "Scout web".
 
 ## Operar
 

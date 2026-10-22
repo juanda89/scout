@@ -1,5 +1,7 @@
 # Handoff: terminar Google OAuth, políticas y publicación de la app
 
+> Estado 2026-10-22: partes A, B y C completadas (credenciales desplegadas, /privacy y /terms publicadas, app en producción en la consola de Google). Queda la parte D (lista de correos de la agencia) y rellenar `LEGAL_ENTITY`, `LEGAL_CONTACT_EMAIL` y `LEGAL_JURISDICTION` en `.env.prod`.
+
 Para el agente que tiene el JSON del cliente OAuth de Google. Objetivo: que el sign-in de Scout funcione con "Continue with Google" en producción, que existan páginas públicas de Política de privacidad y Términos, y que la app de Google esté publicada (no en modo Testing).
 
 ## Contexto en 60 segundos
