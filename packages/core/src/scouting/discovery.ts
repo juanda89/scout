@@ -58,7 +58,7 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
   const hardSpec: BriefSpec = { ...ctx.spec, requirements: ctx.spec.requirements.filter((r) => r.hard) };
   const hardPreds = requiredPredicates(hardSpec, pmap).filter((p) => p.tier === "micro" && p.extraction_spec.provider === "jev");
   const canVerify = hardSpec.requirements.length > 0 && hardPreds.length > 0;
-  const engineCtx = { now: new Date(), predicates: pmap, defaultMinConfidence: config.defaultMinConfidence };
+  const engineCtx = { now: new Date(), predicates: pmap, defaultMinConfidence: config.defaultMinConfidence, jevMinConfidence: config.jevMinConfidence };
   const strategies: StrategyRun[] = [];
   let cost = 0;
   const verified = new Set<string>();      // ids verificados en el tema
@@ -103,6 +103,7 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
   /** Guarda, clasifica (barato primero), busca la zona en bio y posts, verifica el tema y mide el rendimiento. */
   const absorb = async (strategy: string, input: unknown, creators: IngestedCreator[], extraCost: number, labelText: string): Promise<StrategyRun> => {
     const before = new Set(await passingIds());
+    for (const c of creators) c.discovered_via = strategy;   // la fuente que lo trajo, para medir rendimiento por estrategia
     const stored = await storeCreators(creators);
     const handles = creators.map((c) => c.handle.toLowerCase());
     const { rows: pending } = await db().query(
@@ -214,13 +215,12 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
     // Semillas: las verificadas; si son pocas, también quienes pasan filtros y publican de la categoría principal
     // (una persona miraría los "similares" de cualquier foodie de la zona, no solo de las ya confirmadas).
     let seedIds = [...verified];
-    if (seedIds.length < 4 && primaryCats.length) {
-      const { rows } = await db().query(
-        `SELECT f.creator_id AS id FROM creator_facets f JOIN creators c ON c.id = f.creator_id
-          WHERE c.platform = ANY($1) AND f.facets->'content.category' ?| $2::text[] AND NOT (f.creator_id = ANY($3))
-          ORDER BY f.followers DESC NULLS LAST LIMIT 12`, [ctx.platforms, primaryCats, seedIds.length ? seedIds : ["00000000-0000-0000-0000-000000000000"]]);
-      const passingNow = new Set(await passingIds());
-      seedIds = [...seedIds, ...rows.map((r) => r.id as string).filter((id) => passingNow.has(id))];
+    if (seedIds.length < 6 && primaryCats.length) {
+      // Solo entre quienes ya pasan los filtros (zona, tamaño, idioma): foodies de la zona aunque el brief no los verifique.
+      const topical = (await macroCandidates(ctx.spec.macro_filters, { platforms: ctx.platforms }))
+        .filter((c) => !verified.has(c.id) && ((c.facets["content.category"] as string[] | undefined) ?? []).some((x) => primaryCats.includes(x)))
+        .sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0)).slice(0, 12);
+      seedIds = [...seedIds, ...topical.map((c) => c.id)];
     }
     if (!seedIds.length) break;
     const { rows: seedRows } = await db().query(`SELECT id, handle FROM creators WHERE id = ANY($1)`, [seedIds]);
@@ -236,7 +236,7 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
     const minShared = 2;
     const { rows: hubRows } = await db().query(
       `SELECT lower(m) AS handle, count(DISTINCT ci.creator_id)::int AS n FROM content_items ci JOIN creators c ON c.id = ci.creator_id, unnest(ci.mentions) AS m
-        WHERE ci.creator_id = ANY($1) AND lower(m) <> lower(c.handle) GROUP BY lower(m) HAVING count(DISTINCT ci.creator_id) >= $2 ORDER BY n DESC LIMIT 40`, [seedIds, minShared]);
+        WHERE ci.creator_id = ANY($1) AND lower(m) <> lower(c.handle) GROUP BY lower(m) HAVING count(DISTINCT ci.creator_id) >= $2 OR count(*) >= 3 ORDER BY n DESC LIMIT 40`, [seedIds, minShared]);
     const hubs = hubRows.map((r) => String(r.handle).toLowerCase()).filter((h) => !usedHubs.has(h) && !usedSeeds.has(h)).slice(0, 30);
     hubs.forEach((h) => usedHubs.add(h));
     if (hubs.length) await probe(`tagged:${round}`, `Creators who tag the same places as the verified ones (${hubs.slice(0, 3).map((h) => "@" + h).join(", ")}…)`, { ...base, tagged: hubs }, 2);
@@ -251,6 +251,24 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
     if (tags.length) await probe(`learned-hashtags:${round}`, `Hashtags the verified creators really use (${tags.slice(0, 3).map((t) => "#" + t).join(" ")}…)`, { ...base, hashtags: tags }, 2);
     } catch (e) { await ctx.ev(`Snowball round ${round} failed: ${e instanceof Error ? e.message : e}`, "warn"); }
     if (verified.size === beforeRound) break;   // la ronda no aportó: no insistir
+  }
+
+  /* 2b · A quién mencionan los hubs: un festival o una guía gastronómica etiqueta a las creadoras que cubre. Camino para quien no está en el índice. */
+  if (!done() && isLive("apify") && !apify.down && usedHubs.size) {
+    try {
+      const hubs = [...usedHubs].slice(0, 6);
+      const hubIng = await ingestFromApify({ profiles: hubs, maxPostsPerProfile: 30, log: ctx.log });
+      await storeCreators(hubIng.creators);
+      const mentioned = new Map<string, number>();
+      for (const h of hubIng.creators) for (const p of h.posts) for (const m of p.mentions ?? []) { const k = m.toLowerCase(); if (k !== h.handle.toLowerCase()) mentioned.set(k, (mentioned.get(k) ?? 0) + 1); }
+      const { rows: known } = await db().query(`SELECT lower(handle) AS h FROM creators WHERE platform = 'instagram' AND lower(handle) = ANY($1)`, [[...mentioned.keys()]]);
+      const knownSet = new Set(known.map((k) => String(k.h)));
+      const handles = [...mentioned.entries()].filter(([h]) => !knownSet.has(h)).sort((a, b) => b[1] - a[1]).map(([h]) => h).slice(0, 40);
+      if (handles.length) {
+        const ing = await ingestFromApify({ profiles: handles, maxPostsPerProfile: 12, log: ctx.log });
+        await absorb("hub-mentions", { hubs, handles }, ing.creators, hubIng.costUsd + ing.costUsd, `Accounts featured by the hubs (${hubs.slice(0, 3).map((h) => "@" + h).join(", ")})`);
+      }
+    } catch (e) { await apifyFailed("Hub mentions", e); }
   }
 
   /* 3 · Si sigue corto: nicho por país (más amplio) y hashtags de la zona (lo más amplio) */
@@ -268,11 +286,14 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
     }
   }
   if (!done() && isLive("apify") && !apify.down && usedTags.size) {
-    const tags = [...usedTags].slice(0, 6);
-    try {
-      const ing = await ingestFromApify({ hashtags: tags, limit: 40, maxPostsPerProfile: 12, log: ctx.log });
-      await absorb("hashtag-posts", { tags }, ing.creators, ing.costUsd, `Who posts under ${tags.slice(0, 3).map((t) => "#" + t).join(" ")}`);
-    } catch (e) { await apifyFailed("Hashtag search", e); }
+    // Posts bajo un hashtag traen sobre todo negocios y cuentas pequeñas: solo etiquetas muy específicas (tema Y zona, o el nombre de un hub), pocas y con tope.
+    const tags = [...usedTags].filter((t) => (isTopical(t) && hasGeoTerm(t)) || usedHubs.has(t)).slice(0, 4);
+    if (tags.length) {
+      try {
+        const ing = await ingestFromApify({ hashtags: tags, limit: 20, maxPostsPerProfile: 12, log: ctx.log });
+        await absorb("hashtag-posts", { tags }, ing.creators, ing.costUsd, `Who posts under ${tags.slice(0, 3).map((t) => "#" + t).join(" ")}`);
+      } catch (e) { await apifyFailed("Hashtag search", e); }
+    }
   }
 
   if (apify.down) await ctx.ev(`Apify is unavailable for this run (${apify.down.slice(0, 80)}); profiles found by CreatorDB stay in the index without bio or posts until the next run`, "warn");

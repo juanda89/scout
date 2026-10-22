@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { evaluateCreator, evaluateRequirement, testRule } from "../src/rules/engine.js";
 import type { Requirement } from "../src/schema/brief.js";
 import { RequirementSchema, BriefSpecSchema } from "../src/schema/brief.js";
+import { PredicateSchema } from "../src/schema/predicate.js";
 import { claim, NOW, predicates } from "./helpers.js";
 
 const ctx = { now: NOW, predicates: predicates(), defaultMinConfidence: 0.85 };
@@ -67,6 +68,16 @@ describe("evaluateRequirement con derivaciones y evidencia", () => {
     expect(evaluateRequirement(r2, [strong, support], ctx).verdict).toBe("PASS");
     expect(evaluateRequirement(r2, [strong, weak], ctx).verdict).toBe("UNKNOWN");      // 0,6 es demasiado bajo para apoyar
     expect(evaluateRequirement(r2, [support, support], ctx).verdict).toBe("UNKNOWN");  // sin ninguna fuerte, no cuentan
+  });
+  it("un predicado clasificado por Jev usa su propio umbral, más bajo", () => {
+    const preds = predicates();
+    preds.set("food.paisa", PredicateSchema.parse({ key: "food.paisa", label: "", tier: "micro", value_type: "boolean", temporal_kind: "slow", cardinality: "many", extraction_spec: { provider: "jev", modalities: ["caption"], jev: { type: "noul", instructions: "¿Comida paisa?", none_labels: [] } } }));
+    const jctx = { ...ctx, predicates: preds, jevMinConfidence: 0.7 };
+    const r1 = req({ predicate: "food.paisa", rule: { op: "eq", value: true }, min_evidence: 2 });
+    const a = claim({ predicate_key: "food.paisa", value: true, confidence: 0.72, evidence_content_id: "p1" });
+    const b = claim({ predicate_key: "food.paisa", value: true, confidence: 0.67, evidence_content_id: "p2" });
+    expect(evaluateRequirement(r1, [a, b], jctx).verdict).toBe("PASS");     // 0,72 fuerte + 0,67 de apoyo con umbral 0,7
+    expect(evaluateRequirement(r1, [a, b], ctx).verdict).toBe("UNKNOWN");   // con el umbral general (0,85) no cuentan
   });
   it("cardinalidad one: gana el claim humano sobre el automático más reciente", () => {
     const auto = claim({ predicate_key: "wearable.brand", value: "apple", observed_at: new Date("2026-10-01T00:00:00Z") });

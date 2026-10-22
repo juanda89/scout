@@ -28,6 +28,8 @@ export const config = {
   claudeModel: process.env.CLAUDE_MODEL ?? "claude-opus-5-5",
   jevModel: process.env.JEV_MODEL ?? "jev-latest",
   defaultMinConfidence: Number(process.env.DEFAULT_MIN_CONFIDENCE ?? 0.85),
+  /** Jev responde sí/no con confianzas prudentes: "buñuelo con natilla" sale como comida antioqueña al 0,67. Umbral propio, calibrado con muestras reales. */
+  jevMinConfidence: Number(process.env.JEV_MIN_CONFIDENCE ?? 0.7),
   /** Fuerza modo mock aunque haya claves (útil en tests): SCOUT_MOCK=1 */
   forceMock: process.env.SCOUT_MOCK === "1",
 };

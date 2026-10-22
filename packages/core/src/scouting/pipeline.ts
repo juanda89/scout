@@ -123,7 +123,7 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
     }
     await mergeMetrics(scoutingId, { analyzed: deep.length, cost_usd: round(cost) });
     // Evaluación preliminar para "Early finds"
-    const ctx = { now: new Date(), predicates: pmap, defaultMinConfidence: config.defaultMinConfidence };
+    const ctx = { now: new Date(), predicates: pmap, defaultMinConfidence: config.defaultMinConfidence, jevMinConfidence: config.jevMinConfidence };
     const keys = [...new Set([...needed.map((p) => p.key), "content.category", "brand_safety.flags", "location.city", "audience.locations", "audience.ages"])];
     let claimsBy = await listClaimsForCreators(deep.map((c) => c.id), keys);
     const prelim = deep.map((c) => ({ c, e: evaluateCreator(spec, claimsBy.get(c.id) ?? [], ctx) })).filter((x) => x.e.overall !== "FAIL");

@@ -25,6 +25,8 @@ export interface EngineContext {
   now: Date;
   predicates: Map<string, Predicate>;
   defaultMinConfidence: number;
+  /** Umbral para claims de predicados clasificados por Jev (más bajo que el general). */
+  jevMinConfidence?: number;
 }
 
 /** Evalúa un operador contra un valor. Puro. */
@@ -67,8 +69,16 @@ function candidateValues(req: Requirement, claims: Claim[], ctx: EngineContext):
   return out;
 }
 
+/** Umbral de confianza de un requisito: el suyo, o el del clasificador (Jev es prudente y calibra bajo), o el general. */
+export function requirementMinConfidence(req: Requirement, ctx: EngineContext): number {
+  if (req.min_confidence != null) return req.min_confidence;
+  const p = ctx.predicates.get(req.predicate);
+  if (p?.extraction_spec.provider === "jev" && ctx.jevMinConfidence != null) return ctx.jevMinConfidence;
+  return ctx.defaultMinConfidence;
+}
+
 export function evaluateRequirement(req: Requirement, allClaims: Claim[], ctx: EngineContext): RequirementResult {
-  const minConfidence = req.min_confidence ?? ctx.defaultMinConfidence;
+  const minConfidence = requirementMinConfidence(req, ctx);
   const relevantKeys = req.rule.derived
     ? new Set(predicatesProviding(req.rule.derived, ctx.predicates).map((p) => p.key))
     : new Set([req.predicate]);
@@ -114,7 +124,7 @@ export function evaluateRequirement(req: Requirement, allClaims: Claim[], ctx: E
   if (n < req.min_evidence) {
     // Evidencia de apoyo: con al menos una evidencia fuerte, los claims hasta 0,1 por debajo del umbral
     // completan el conteo (un 0,83 confirma lo que un 0,99 ya dijo; sin el fuerte, siguen sin contar).
-    const supportFloor = Math.max(0.7, minConfidence - 0.1);
+    const supportFloor = Math.max(0.5, minConfidence - 0.1);
     const support = vigentes(scoped, { now: ctx.now, minConfidence: supportFloor, maxEvidenceAgeDays: req.max_evidence_age_days }).sort(byPriority).filter((c) => c.polarity === "affirms");
     const supPool = cardinality === "one" && !req.rule.derived ? candidateValues(req, support, ctx).slice(0, 1) : candidateValues(req, support, ctx);
     const supSat = supPool.filter((c) => testRule(req.rule, c.value));

@@ -147,6 +147,12 @@ La medida de éxito del descubrimiento no es cuántos perfiles pasan los filtros
 
 Meta: tres verificadas por creadora pedida (mínimo 6, máximo 60) o el presupuesto `SCOUT_DISCOVERY_MAX_USD` (3 USD). Cada consulta registra en `discovery_runs` perfiles traídos, nuevos, cuántos pasan filtros y cuántos quedaron verificados, con su costo: el rendimiento por dólar de cada fuente queda medido.
 
+**Calibración de Jev.** Las respuestas sí/no de Jev salen con confianzas prudentes: "buñuelo grande relleno de queso con su natilla" es comida antioqueña al 0,67 y "los típicos más típicos de Antioquia" al 0,77. Con el umbral general de 0,85 esas evidencias no contaban y foodies reales quedaban sin verificar. Los predicados clasificados por Jev usan su propio umbral (`JEV_MIN_CONFIDENCE`, 0,7; apoyo desde 0,6), calibrado leyendo muestras reales; el resto sigue en 0,85.
+
+**Más posts no es la palanca.** Apify devuelve 12 posts por perfil en modo detalle (0,0025 USD por perfil); el modo posts da 30 pero cuesta 0,06 USD por perfil, 25 veces más, y no cambió ningún veredicto en la prueba.
+
+**A quién mencionan los hubs.** Cuando las verificadas etiquetan los mismos sitios (un festival, una guía gastronómica), se leen los posts de esos hubs y se traen las cuentas que ellos mencionan: camino para creadoras que el índice de CreatorDB no tiene. En la prueba los hubs mencionaban sobre todo patrocinadores y restaurantes, así que rinde poco en foodies; se mantiene por su costo bajo.
+
 **Creadora o negocio.** La plataforma marca las cuentas de negocio (`isBusinessAccount`) y eso se guarda como claim `account.kind` con confianza 0,97; si no es obvio, Jev lo decide por la bio y el handle. El filtro macro excluye negocios y medios.
 
 **Ubicación lógica.** El brief se expande con un LLM a su alcance real (`expandLocation`): una ciudad incluye su área metropolitana, un departamento o región incluye todos sus municipios, "Latinoamérica" incluye todos sus países. Ciudad es filtro duro solo cuando el brief baja de país; país siempre. La evidencia de ciudad se obtiene primero sin IA: la ciudad o sus apodos en el handle o el nombre (0,85), en la bio (0,9), dos o más geotags (0,9), cuatro o más menciones en captions o hashtags (0,9) o dos o tres (0,8). Una sola mención no cuenta.
