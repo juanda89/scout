@@ -8,8 +8,9 @@ import { normCity } from "../scouting/geo.js";
 /** Recalcula la fila de creator_facets de una creadora a partir de sus claims macro vigentes. */
 export async function refreshFacets(creatorId: string): Promise<Record<string, unknown[]>> {
   const macro = await listPredicates("macro");
-  const claims = vigentes(await listClaims(creatorId, macro.map((p) => p.key)), { now: new Date(), minConfidence: config.defaultMinConfidence })
-    .filter((c) => c.polarity === "affirms")
+  const floor = new Map(macro.map((p) => [p.key, p.extraction_spec.provider === "jev" ? config.jevMinConfidence : config.defaultMinConfidence]));
+  const claims = vigentes(await listClaims(creatorId, macro.map((p) => p.key)), { now: new Date(), minConfidence: 0.5 })
+    .filter((c) => c.polarity === "affirms" && Number(c.confidence) >= (floor.get(c.predicate_key) ?? config.defaultMinConfidence))
     .sort(byPriority);
   const facets: Record<string, unknown[]> = {};
   for (const p of macro) {
@@ -18,6 +19,12 @@ export async function refreshFacets(creatorId: string): Promise<Record<string, u
     if (p.key === "location.city") {
       // Todas las ciudades con evidencia (bio, geotags), normalizadas para comparar sin acentos ni mayúsculas.
       facets[p.key] = [...new Set(mine.map((c) => normCity(String(c.value))).filter(Boolean))];
+      continue;
+    }
+    if (p.key === "account.kind") {
+      // Tipo de cuenta: gana la evidencia más segura, no la más reciente (Jev al 0,96 "creadora" sobre una señal de bio al 0,86).
+      const best = [...mine].sort((a, b) => Number(b.confidence) - Number(a.confidence))[0];
+      facets[p.key] = [best.value];
       continue;
     }
     facets[p.key] = p.cardinality === "one" ? [mine[0].value] : [...new Set(mine.map((c) => JSON.stringify(c.value)))].map((v) => JSON.parse(v));

@@ -16,7 +16,7 @@ import { evaluateCreator } from "../rules/engine.js";
 import type { BriefSpec } from "../schema/brief.js";
 import type { Predicate } from "../schema/predicate.js";
 import { A2_TO_A3, normCity, type GeoScope } from "./geo.js";
-import { cityFromLocation } from "../ingest/store.js";
+import { businessSignals, cityFromLocation } from "../ingest/store.js";
 import type { ScoutingFields } from "./types.js";
 
 /**
@@ -187,6 +187,27 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
         ctx.log(`evidencia de ciudad en el índice: ${added} señales en ${touched.length} perfiles`);
       }
     }
+  }
+  {
+    // Negocios que se hacían pasar por creadoras: la bandera de Instagram apagada no prueba nada; la bio sí.
+    const { rows } = await db().query(
+      `SELECT c.id, c.handle, c.display_name, (SELECT caption FROM content_items b WHERE b.creator_id = c.id AND b.kind = 'bio' ORDER BY posted_at DESC NULLS LAST LIMIT 1) AS bio
+         FROM creators c WHERE c.platform = ANY($1) AND NOT EXISTS (SELECT 1 FROM claims k WHERE k.creator_id = c.id AND k.predicate_key = 'account.kind' AND k.extractor->>'provider' = 'bio_signal')`, [ctx.platforms]);
+    let flagged = 0;
+    for (const r of rows) {
+      const biz = businessSignals(r.bio, r.display_name, r.handle);
+      if (!biz) continue;
+      await db().query(`INSERT INTO claims (creator_id, predicate_key, value, polarity, observed_at, evidence_span, evidence_modality, confidence, extractor, status) VALUES ($1,'account.kind','"business"','affirms',now(),$2,'bio',$3,'{"provider":"bio_signal"}','auto')`, [r.id, biz.span, biz.confidence]);
+      await refreshFacets(r.id);
+      flagged++;
+    }
+    if (flagged) ctx.log(`señales de negocio en bios del índice: ${flagged} perfiles`);
+    // Facetas que aún digan "creadora" sin un claim vigente que lo sostenga (la bandera apagada ya no cuenta): recalcular.
+    const { rows: stale } = await db().query(
+      `SELECT f.creator_id FROM creator_facets f JOIN creators c ON c.id = f.creator_id WHERE c.platform = ANY($1) AND f.facets->'account.kind' ? 'creator'
+         AND NOT EXISTS (SELECT 1 FROM claims k WHERE k.creator_id = f.creator_id AND k.predicate_key = 'account.kind' AND k.value = '"creator"'::jsonb AND k.confidence >= $2)`, [ctx.platforms, config.jevMinConfidence]);
+    for (const r of stale) await refreshFacets(r.creator_id);
+    if (stale.length) ctx.log(`facetas de tipo de cuenta recalculadas: ${stale.length}`);
   }
   {
     const existing = await passingIds();

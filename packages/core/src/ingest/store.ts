@@ -57,13 +57,23 @@ export async function storeCreators(creators: IngestedCreator[]): Promise<{ crea
           );
         }
       }
-      // Cuenta de negocio declarada por la plataforma -> claim de tipo de cuenta
-      if (c.is_business != null) {
+      // La bandera de "cuenta de negocio" de Instagram prueba negocio cuando está activa; apagada no prueba nada
+      // (muchísimos negocios no la activan). Entonces decide la bio: señales determinísticas y, si no es obvio, Jev.
+      if (c.is_business === true) {
         await client.query(
           `INSERT INTO claims (creator_id, predicate_key, value, polarity, observed_at, evidence_span, evidence_modality, confidence, extractor, status)
-           SELECT $1,'account.kind',$2,'affirms',now(),$3,'metrics',0.97,'{"provider":"platform_flag"}','auto'
+           SELECT $1,'account.kind','"business"','affirms',now(),$2,'metrics',0.97,'{"provider":"platform_flag"}','auto'
            WHERE NOT EXISTS (SELECT 1 FROM claims WHERE creator_id = $1 AND predicate_key = 'account.kind' AND evidence_modality = 'metrics')`,
-          [creatorId, JSON.stringify(c.is_business ? "business" : "creator"), c.is_business ? `Instagram business account${c.business_category ? ` (${c.business_category})` : ""}` : "Instagram personal/creator account"],
+          [creatorId, `Instagram business account${c.business_category ? ` (${c.business_category})` : ""}`],
+        );
+      }
+      const biz = businessSignals(c.bio, c.display_name, c.handle);
+      if (biz) {
+        await client.query(
+          `INSERT INTO claims (creator_id, predicate_key, value, polarity, observed_at, evidence_span, evidence_modality, confidence, extractor, status)
+           SELECT $1,'account.kind','"business"','affirms',now(),$2,'bio',$3,'{"provider":"bio_signal"}','auto'
+           WHERE NOT EXISTS (SELECT 1 FROM claims WHERE creator_id = $1 AND predicate_key = 'account.kind' AND extractor->>'provider' = 'bio_signal')`,
+          [creatorId, biz.span, biz.confidence],
         );
       }
     }
@@ -98,4 +108,21 @@ function estimateEngagement(c: IngestedCreator): number | null {
 export async function findCreatorByHandle(handle: string, platform = "instagram"): Promise<StoredCreator | null> {
   const { rows } = await db().query(`SELECT id, platform, handle FROM creators WHERE platform = $1 AND handle = $2`, [platform, handle.replace(/^@/, "").toLowerCase()]);
   return rows[0] ?? null;
+}
+
+/**
+ * Señales de negocio en bio, nombre y handle, como las leería una persona: pedidos, domicilios, horarios, sedes,
+ * "CEO @", "oficial", precios. Una señal fuerte o dos débiles bastan; una débil sola solo apoya a Jev.
+ */
+export function businessSignals(bio: string | null | undefined, displayName: string | null | undefined, handle: string): { confidence: number; span: string } | null {
+  const text = `${displayName ?? ""}\n${bio ?? ""}`.toLowerCase();
+  const h = handle.toLowerCase();
+  // "CEO @marca" o "fundador" es débil: muchas creadoras tienen su propia marca y siguen siendo creadoras (Jev decide).
+  const strong = [/\bpedidos?\b/, /\bdomicilios?\b/, /\bdelivery\b/, /\bhorarios?\b/, /\bsedes?\b/, /\breservas?\b/, /\bfranquicia/, /\bdistribuidor/, /\benv[ií]os?\b/, /\bcotiza/, /\bwhatsapp\b.*\b(pedido|compra|cotiza|reserva)/, /\b(pedido|compra|cotiza|reserva)\w*\b.*\bwhatsapp\b/, /\btienda\s+(online|virtual|f[ií]sica)/, /\b24\s*h(oras)?\b/, /\bmen[uú](?![a-z])/];
+  const weak = [/\bceo\s*@/, /\bfundador/, /\boficial\b/, /\brestaurante\b/, /\bcafeter[ií]a\b/, /\bpanader[ií]a\b/, /\bpizzer[ií]a\b/, /\bhelader[ií]a\b/, /\btienda\b/, /\bshop\b/, /\bstore\b/, /\bmarca\b/, /\bempresa\b/, /\bservicios?\b/, /\bcl[ií]nica\b/, /\bagencia\b/, /\bhotel\b/, /\bacademia\b/, /\bcentro comercial\b/, /\bventas?\b/, /\bcompra\b/, /\$\s?\d/, /\blocal\s+\d/];
+  const hits = (list: RegExp[]) => list.filter((re) => re.test(text)).length;
+  const sH = hits(strong), sW = hits(weak) + (/(store|shop|tienda|oficial|official|restaurante|pizza|burger|cafe)/.test(h) ? 1 : 0);
+  if (sH >= 1 || sW >= 2) return { confidence: sH >= 2 || (sH >= 1 && sW >= 1) ? 0.92 : 0.86, span: `bio: ${(bio ?? displayName ?? "").replace(/\s+/g, " ").slice(0, 160)}` };
+  if (sW === 1) return { confidence: 0.6, span: `bio: ${(bio ?? displayName ?? "").replace(/\s+/g, " ").slice(0, 160)}` };
+  return null;
 }
