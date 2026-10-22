@@ -1,11 +1,11 @@
-import { db } from "../db.js";
+import { db, pool } from "../db.js";
 import type { IngestedCreator } from "./types.js";
 
 export interface StoredCreator { id: string; platform: string; handle: string }
 
 /** Persiste creadoras y contenido de forma idempotente. La bio se guarda como content_item kind=bio. */
 export async function storeCreators(creators: IngestedCreator[]): Promise<{ creators: number; posts: number }> {
-  const client = await db().connect();
+  const client = await pool().connect();
   let nc = 0, np = 0;
   try {
     await client.query("BEGIN");

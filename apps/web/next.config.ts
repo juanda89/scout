@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+// En desarrollo la web se conecta con el rol scout_app (RLS) si DATABASE_URL_WEB está definido.
+if (process.env.DATABASE_URL_WEB) process.env.DATABASE_URL = process.env.DATABASE_URL_WEB;
+process.env.SCOUT_PROCESS ??= "web";
+
 const config: NextConfig = {
   transpilePackages: ["@scout/core"],
   serverExternalPackages: ["pg", "pg-boss", "@typesafe-ai/sdk", "apify-client", "@anthropic-ai/sdk", "dotenv"],

@@ -1,7 +1,7 @@
 import { getBoss, SCOUTING_QUEUE } from "@scout/core/scouting/queue";
 import { runScoutingPipeline } from "@scout/core/scouting/pipeline";
 import { getScouting } from "@scout/core/scouting/repo";
-import { db, migrate } from "@scout/core/db";
+import { db, ensureAppRole, migrate } from "@scout/core/db";
 import { seedRegistry } from "@scout/core/registry/registry";
 import { sendResultsEmail } from "./notify.js";
 
@@ -12,6 +12,7 @@ async function main() {
   if (applied.length) console.log(`[worker] migraciones aplicadas: ${applied.join(", ")}`);
   await seedRegistry();
   const boss = await getBoss();
+  if (await ensureAppRole()) console.log("[worker] rol scout_app verificado (incluye esquema pgboss)");
   console.log(`[worker] escuchando cola ${SCOUTING_QUEUE}`);
   await boss.work<{ scoutingId: string }>(SCOUTING_QUEUE, { batchSize: 1, pollingIntervalSeconds: 2 }, async (jobs) => {
     for (const job of jobs) {

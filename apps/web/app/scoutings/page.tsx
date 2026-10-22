@@ -1,4 +1,4 @@
-import { requireViewer } from "@/lib/session";
+import { withViewer } from "@/lib/session";
 import { runningHint, scoutingsFor, overallPct } from "@/lib/data";
 import { Header } from "@/components/Header";
 import { Shell } from "@/components/Shell";
@@ -9,8 +9,8 @@ import { STAGES } from "@scout/core/scouting/types";
 export const dynamic = "force-dynamic";
 
 export default async function ScoutingsPage() {
-  const viewer = await requireViewer();
-  const [items, running] = await Promise.all([scoutingsFor(), runningHint()]);
+  return withViewer(async (viewer) => {
+  const [items, running] = await Promise.all([scoutingsFor(viewer.id), runningHint()]);
   const rows: ListRow[] = items.filter((s) => s.status !== "cancelled").map((s) => {
     const stage = STAGES.find((x) => x.n === Math.max(1, s.stage));
     const startedToday = s.started_at && new Date(s.started_at).toDateString() === new Date().toDateString();
@@ -32,4 +32,5 @@ export default async function ScoutingsPage() {
       </main>
     </Shell>
   );
+  });
 }

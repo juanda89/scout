@@ -6,10 +6,12 @@ let boss: PgBoss | null = null;
 
 export async function getBoss(): Promise<PgBoss> {
   if (boss) return boss;
-  const b = new PgBoss({ connectionString: config.databaseUrl, schema: "pgboss" });
+  // La web solo encola: no migra ni supervisa (corre con el rol scout_app, sin permisos de DDL).
+  const clientOnly = process.env.SCOUT_PROCESS === "web";
+  const b = new PgBoss({ connectionString: config.databaseUrl, schema: "pgboss", ...(clientOnly ? { migrate: false, supervise: false, schedule: false } : {}) });
   b.on("error", (e: Error) => console.error("[pg-boss]", e));
   await b.start();
-  await b.createQueue(SCOUTING_QUEUE, { retryLimit: 1, expireInSeconds: 12 * 3600 }).catch(() => {});
+  if (!clientOnly) await b.createQueue(SCOUTING_QUEUE, { retryLimit: 1, expireInSeconds: 12 * 3600 }).catch(() => {});
   boss = b;
   return b;
 }

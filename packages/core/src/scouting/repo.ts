@@ -1,4 +1,4 @@
-import { db } from "../db.js";
+import { db, pool } from "../db.js";
 import { ScoutingFieldsSchema, type FieldSource, type Scouting, type ScoutingEvent, type ScoutingFields, type ScoutingMetrics, type ScoutingResult, type ScoutingStatus, type Span } from "./types.js";
 
 function row(r: Record<string, unknown>): Scouting {
@@ -80,7 +80,7 @@ export async function listEvents(id: string, afterId = 0, limit = 50): Promise<S
 }
 
 export async function upsertResults(scoutingId: string, results: Array<Omit<ScoutingResult, "scouting_id" | "handle" | "display_name" | "avatar_url" | "on_shortlist">>): Promise<void> {
-  const client = await db().connect();
+  const client = await pool().connect();
   try {
     await client.query("BEGIN");
     await client.query(`DELETE FROM scouting_results WHERE scouting_id = $1 AND preliminary = true`, [scoutingId]);

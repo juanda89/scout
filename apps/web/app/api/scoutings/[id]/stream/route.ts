@@ -1,13 +1,14 @@
-import { auth } from "@/auth";
 import { progressSnapshot } from "@/lib/data";
+import { viewerOrNull } from "@/lib/session";
+import { runAsUser } from "@scout/core/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Server-Sent Events con el estado del scouting cada 2 s (eventos nuevos, etapas, métricas). */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session?.user) return new Response("unauthorized", { status: 401 });
+  const viewer = await viewerOrNull();
+  if (!viewer) return new Response("unauthorized", { status: 401 });
   const { id } = await params;
   const url = new URL(req.url);
   let after = Number(url.searchParams.get("after") ?? 0);
@@ -18,7 +19,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       req.signal.addEventListener("abort", () => { alive = false; });
       const send = (event: string, data: unknown) => controller.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
       while (alive) {
-        const snap = await progressSnapshot(id, after);
+        const snap = await runAsUser(viewer.id, () => progressSnapshot(id, after));
         if (!snap) { send("gone", {}); break; }
         if (snap.events.length) after = Math.max(after, ...snap.events.map((e) => e.id));
         send("state", snap);

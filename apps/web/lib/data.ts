@@ -6,8 +6,8 @@ import type { RunningHint } from "@/components/Header";
 
 export type { Scouting, ScoutingResult, ScoutingEvent, ScoutingListItem };
 
-/** Todas las scoutings de la agencia son visibles para cualquier usuario autorizado (single-tenant). */
-export async function scoutingsFor(): Promise<ScoutingListItem[]> { return listScoutings(null); }
+/** Scoutings del usuario. RLS ya filtra por dueño; el parámetro es redundante a propósito. */
+export async function scoutingsFor(ownerId: number): Promise<ScoutingListItem[]> { return listScoutings(ownerId); }
 
 export async function runningHint(): Promise<RunningHint | null> {
   const { rows } = await db().query(`SELECT id, stage, stage_progress FROM scoutings WHERE status IN ('running','queued') ORDER BY started_at DESC NULLS LAST LIMIT 1`);

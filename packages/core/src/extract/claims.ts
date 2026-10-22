@@ -1,9 +1,9 @@
-import { db } from "../db.js";
+import { db, pool } from "../db.js";
 import { ClaimSchema, type Claim, type NewClaim } from "../schema/claim.js";
 
 export async function insertClaims(claims: NewClaim[]): Promise<number> {
   if (!claims.length) return 0;
-  const client = await db().connect();
+  const client = await pool().connect();
   try {
     await client.query("BEGIN");
     for (const c of claims) {
@@ -53,7 +53,7 @@ export async function listClaimsForCreators(creatorIds: string[], predicateKeys:
 export async function insertHumanClaim(opts: {
   creatorId: string; predicateKey: string; value: unknown; polarity: "affirms" | "denies"; reviewer: string; note?: string; supersedeAuto?: boolean;
 }): Promise<string> {
-  const client = await db().connect();
+  const client = await pool().connect();
   try {
     await client.query("BEGIN");
     const { rows } = await client.query(

@@ -19,16 +19,20 @@ services:
     restart: unless-stopped
     env_file: .env.prod
     environment:
-      DATABASE_URL: postgres://scout:${POSTGRES_PASSWORD}@db:5432/scoutting
+      # Rol sin privilegios: las políticas RLS aplican. El worker crea el rol con APP_DB_PASSWORD.
+      DATABASE_URL: postgres://scout_app:${APP_DB_PASSWORD:?define APP_DB_PASSWORD en .env.prod}@db:5432/scoutting
+      SCOUT_PROCESS: web
     ports: ["80:3000"]
     depends_on:
       db: { condition: service_healthy }
+      worker: { condition: service_started }
   worker:
     build: { context: ., dockerfile: apps/worker/Dockerfile }
     restart: unless-stopped
     env_file: .env.prod
     environment:
       DATABASE_URL: postgres://scout:${POSTGRES_PASSWORD}@db:5432/scoutting
+      SCOUT_PROCESS: worker
     depends_on:
       db: { condition: service_healthy }
 volumes:

@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { Shell } from "@/components/Shell";
-import { requireViewer } from "@/lib/session";
+import { withViewer } from "@/lib/session";
 import { Header, Steps } from "@/components/Header";
 import { getScouting } from "@scout/core/scouting/repo";
 import { ConfirmBrief } from "./ConfirmBrief";
@@ -9,7 +9,7 @@ import { ConfirmBrief } from "./ConfirmBrief";
 export const dynamic = "force-dynamic";
 
 export default async function Confirm({ params }: { params: Promise<{ draftId: string }> }) {
-  const viewer = await requireViewer();
+  return withViewer(async (viewer) => {
   const { draftId } = await params;
   const s = await getScouting(draftId);
   if (!s) notFound();
@@ -26,4 +26,5 @@ export default async function Confirm({ params }: { params: Promise<{ draftId: s
       </main>
     </Shell>
   );
+  });
 }

@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { requireViewer } from "@/lib/session";
+import { withViewer } from "@/lib/session";
 import { Header } from "@/components/Header";
 import { Shell } from "@/components/Shell";
 import { progressSnapshot, runningHint, scoutingDetail } from "@/lib/data";
@@ -11,7 +11,7 @@ import { duplicateScouting } from "@/lib/actions";
 export const dynamic = "force-dynamic";
 
 export default async function ScoutingPage({ params }: { params: Promise<{ id: string }> }) {
-  const viewer = await requireViewer();
+  return withViewer(async (viewer) => {
   const { id } = await params;
   const d = await scoutingDetail(id);
   if (!d) notFound();
@@ -83,4 +83,5 @@ export default async function ScoutingPage({ params }: { params: Promise<{ id: s
       </main>
     </Shell>
   );
+  });
 }
