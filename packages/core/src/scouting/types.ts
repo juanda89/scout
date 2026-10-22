@@ -78,9 +78,10 @@ export const STAGES = [
 ] as const;
 export type StageKey = (typeof STAGES)[number]["key"];
 
-export interface FitParts { topic: number; audience: number; engagement: number; brand_safety: number; rate_vs_budget: number }
-export const FIT_WEIGHTS: FitParts = { topic: 0.35, audience: 0.25, engagement: 0.15, brand_safety: 0.1, rate_vs_budget: 0.15 };
-export const FIT_LABELS: Record<keyof FitParts, string> = { topic: "Topic", audience: "Audience (location and age)", engagement: "Engagement", brand_safety: "Brand safety", rate_vs_budget: "Rate vs. budget" };
+export interface FitParts { topic: number; audience: number; engagement: number; brand_safety: number }
+/** El presupuesto no puntúa: es contexto para la negociación, no un criterio de encaje. */
+export const FIT_WEIGHTS: FitParts = { topic: 0.4, audience: 0.3, engagement: 0.2, brand_safety: 0.1 };
+export const FIT_LABELS: Record<keyof FitParts, string> = { topic: "Topic", audience: "Audience (location and age)", engagement: "Engagement", brand_safety: "Brand safety" };
 
 export type Tier = "excellent" | "very_good" | "good";
 export function tierOf(fit: number): Tier { return fit >= 90 ? "excellent" : fit >= 80 ? "very_good" : "good"; }
@@ -96,6 +97,7 @@ export interface ScoutingResult {
   summary: string | null;
   pros: string[];
   cons: string[];
+  /** Columna histórica; ya no se estima tarifa (siempre null en resultados nuevos). */
   estimated_rate_usd: number | null;
   followers: number | null;
   er: number | null;

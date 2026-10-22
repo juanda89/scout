@@ -4,7 +4,7 @@ import { FIT_LABELS, type FitParts } from "./types.js";
 
 export interface ExplainInput {
   creator_id: string; handle: string; platform: string | null; fit: number; parts: FitParts;
-  followers: number | null; er: number | null; targetAudiencePct: number | null; estimatedRateUsd: number | null; budgetPerCreatorUsd: number | null;
+  followers: number | null; er: number | null; targetAudiencePct: number | null;
   verdicts: Array<{ requirement: string; verdict: string; reason: string; values: unknown[] }>;
   evidence: Array<{ predicate: string; value: unknown; quote: string | null; date: string | null }>;
   categories: string[];
@@ -39,7 +39,7 @@ export async function explainResults(items: ExplainInput[]): Promise<Explanation
 }
 
 function compact(i: ExplainInput) {
-  return { creator_id: i.creator_id, handle: i.handle, platform: i.platform, fit: i.fit, parts: i.parts, followers: i.followers, engagement_pct: i.er == null ? null : Number((i.er * 100).toFixed(1)), target_audience_pct: i.targetAudiencePct, estimated_rate_usd: i.estimatedRateUsd, budget_per_creator_usd: i.budgetPerCreatorUsd, categories: i.categories, verdicts: i.verdicts, evidence: i.evidence.slice(0, 12) };
+  return { creator_id: i.creator_id, handle: i.handle, platform: i.platform, fit: i.fit, parts: i.parts, followers: i.followers, engagement_pct: i.er == null ? null : Number((i.er * 100).toFixed(1)), target_audience_pct: i.targetAudiencePct, categories: i.categories, verdicts: i.verdicts, evidence: i.evidence.slice(0, 12) };
 }
 
 export function fallback(i: ExplainInput): Explanation {

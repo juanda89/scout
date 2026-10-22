@@ -17,7 +17,7 @@ import type { Claim } from "../schema/claim.js";
 import { addEvent, getScouting, mergeMetrics, setStage, updateScouting, upsertResults } from "./repo.js";
 import { briefTextFrom } from "./fields.js";
 import { deriveSeeds } from "./seeds.js";
-import { computeFit, estimateRateUsd, FX_TO_USD } from "./fit.js";
+import { computeFit } from "./fit.js";
 import { audienceInAgeRange, audienceInCountries, expandLocation, normCity, type GeoScope } from "./geo.js";
 import { runDiscovery } from "./discovery.js";
 import { explainResults, type ExplainInput } from "./explain.js";
@@ -169,7 +169,7 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
       .map(({ c, e }) => buildResult(scoutingId, c, e, claimsBy.get(c.id) ?? [], spec, s, false)).sort(byEvidenceThenFit).map((r, idx) => ({ ...r, rank: idx + 1 }));
     await progress(0.4);
     const top = finals.slice(0, LIMITS.explainTop);
-    const explanations = await explainResults(top.map((r) => explainInput(r, deep.find((c) => c.id === r.creator_id)!, claimsBy.get(r.creator_id) ?? [], s)));
+    const explanations = await explainResults(top.map((r) => explainInput(r, deep.find((c) => c.id === r.creator_id)!, claimsBy.get(r.creator_id) ?? [])));
     const byId = new Map(explanations.map((x) => [x.creator_id, x]));
     for (const r of finals) { const x = byId.get(r.creator_id); if (x) { r.summary = x.summary; r.pros = x.pros; r.cons = x.cons; } }
     await progress(0.8);
@@ -255,26 +255,21 @@ function buildResult(scoutingId: string, c: Candidate, e: ReturnType<typeof eval
   const ages = (latest(claims, "audience.ages")?.value as Record<string, number> | undefined) ?? null;
   const flags = [...new Set(claims.filter((x) => x.predicate_key === "brand_safety.flags").map((x) => String(x.value)))];
   const er = c.er_estimate == null ? null : Number(c.er_estimate);
-  const fx = FX_TO_USD[s.fields.currency] ?? 1;
-  const budgetPerCreator = s.fields.budget && s.fields.creators_wanted ? (s.fields.budget * fx) / s.fields.creators_wanted : null;
   const audienceLocationPct = audienceInCountries(locations, s.fields.countries);
   const fit = computeFit({
     verdict: e.overall, topicShare, audienceLocationPct, audienceAgePct: audienceInAgeRange(ages, s.fields.age_min, s.fields.age_max),
     followers: c.followers, er, minEngagementPct: s.fields.min_engagement_pct, brandSafetyFlags: flags,
-    estimatedRateUsd: estimateRateUsd(c.followers, c.platform, s.fields.countries[0] ?? null), budgetPerCreatorUsd: budgetPerCreator,
   });
   return {
     scouting_id: scoutingId, creator_id: c.id, rank: 0, fit: fit.fit, fit_parts: fit.parts, tier: tierOf(fit.fit), verdict: e.overall === "PASS" ? "PASS" : "UNKNOWN",
-    summary: null, pros: [], cons: [], estimated_rate_usd: fit.estimatedRateUsd, followers: c.followers, er, target_audience_pct: audienceLocationPct,
+    summary: null, pros: [], cons: [], estimated_rate_usd: null, followers: c.followers, er, target_audience_pct: audienceLocationPct,
     platform: c.platform, city: (latest(claims, "location.city")?.value as string | undefined) ?? null, preliminary, evidence_claim_ids: e.evidence_claim_ids,
   };
 }
 
-function explainInput(r: Omit<ScoutingResult, "handle" | "display_name" | "avatar_url" | "on_shortlist">, c: Candidate, claims: Claim[], s: Scouting): ExplainInput {
-  const fx = FX_TO_USD[s.fields.currency] ?? 1;
+function explainInput(r: Omit<ScoutingResult, "handle" | "display_name" | "avatar_url" | "on_shortlist">, c: Candidate, claims: Claim[]): ExplainInput {
   return {
     creator_id: r.creator_id, handle: c.handle, platform: c.platform, fit: r.fit, parts: r.fit_parts, followers: r.followers, er: r.er, targetAudiencePct: r.target_audience_pct,
-    estimatedRateUsd: r.estimated_rate_usd, budgetPerCreatorUsd: s.fields.budget && s.fields.creators_wanted ? (s.fields.budget * fx) / s.fields.creators_wanted : null,
     verdicts: [], evidence: claims.filter((x) => x.evidence_span && x.evidence_modality !== "external_api").slice(0, 12).map((x) => ({ predicate: x.predicate_key, value: x.value, quote: x.evidence_span, date: x.observed_at?.toISOString().slice(0, 10) ?? null })),
     categories: [...new Set(claims.filter((x) => x.predicate_key === "content.category").map((x) => String(x.value)))],
   };

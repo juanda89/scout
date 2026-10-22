@@ -15,12 +15,9 @@ export interface FitInput {
   er: number | null;
   minEngagementPct: number | null;
   brandSafetyFlags: string[];
-  /** Tarifa estimada en USD y presupuesto por creadora en USD. */
-  estimatedRateUsd: number | null;
-  budgetPerCreatorUsd: number | null;
 }
 
-export interface FitOutput { fit: number; parts: FitParts; tier: Tier; estimatedRateUsd: number | null }
+export interface FitOutput { fit: number; parts: FitParts; tier: Tier }
 
 const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 
@@ -33,20 +30,7 @@ export function erBenchmark(followers: number | null): number {
   return 0.015;
 }
 
-/** USD por cada 1.000 seguidores por pieza en Instagram, según el mercado del creador. Heurística pública; se reemplaza por tarifas reales cuando existan. */
-export const RATE_PER_K_BY_COUNTRY: Record<string, number> = { US: 10, ES: 7, BR: 4, MX: 4, CL: 4, AR: 3, CO: 3, PE: 3 };
-const RATE_PER_K_DEFAULT = 5;
 
-/** Tarifa estimada por pieza en USD a partir de seguidores, plataforma y país del mercado (el del brief si el creador no lo declara). */
-export function estimateRateUsd(followers: number | null, platform: string | null, country?: string | null): number | null {
-  if (!followers) return null;
-  const base = (country && RATE_PER_K_BY_COUNTRY[country.toUpperCase()]) || RATE_PER_K_DEFAULT;
-  const perThousand = platform === "youtube" ? base * 2 : platform === "tiktok" ? base * 0.8 : base;
-  return Math.round((followers / 1000) * perThousand);
-}
-
-/** Conversión a USD para comparar presupuesto. Tasas aproximadas, configurables por entorno. */
-export const FX_TO_USD: Record<string, number> = { USD: 1, EUR: 1.1, MXN: 0.055, COP: 0.00025 };
 
 export function computeFit(i: FitInput): FitOutput {
   // Topic: el veredicto duro pesa 60 %, la proporción de contenido en tema 40 %.
@@ -70,15 +54,8 @@ export function computeFit(i: FitInput): FitOutput {
   const flags = i.brandSafetyFlags.filter((f) => f !== "none");
   const brand_safety = flags.some((f) => severe.includes(f)) ? 0 : flags.length ? 60 : 100;
 
-  // Rate vs budget: 100 si la tarifa cabe holgada, 0 si dobla el presupuesto por creadora.
-  let rate_vs_budget = 50;
-  const rate = i.estimatedRateUsd;
-  if (rate != null && i.budgetPerCreatorUsd) {
-    const r = rate / i.budgetPerCreatorUsd;
-    rate_vs_budget = r <= 0.8 ? 100 : r >= 2 ? 0 : clamp(100 - ((r - 0.8) / 1.2) * 100);
-  }
-
-  const parts: FitParts = { topic: Math.round(topic), audience: Math.round(audience), engagement: Math.round(engagement), brand_safety, rate_vs_budget: Math.round(rate_vs_budget) };
+  // El presupuesto no entra en el puntaje: la tarifa real se negocia con cada creadora y no se estima por seguidores.
+  const parts: FitParts = { topic: Math.round(topic), audience: Math.round(audience), engagement: Math.round(engagement), brand_safety };
   const fit = Math.round((Object.keys(FIT_WEIGHTS) as Array<keyof FitParts>).reduce((a, k) => a + parts[k] * FIT_WEIGHTS[k], 0));
-  return { fit: clamp(fit), parts, tier: tierOf(fit), estimatedRateUsd: rate };
+  return { fit: clamp(fit), parts, tier: tierOf(fit) };
 }

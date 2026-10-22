@@ -36,7 +36,7 @@ Decisiones:
 
 - **Una sola base de datos Postgres** para datos y cola de trabajos (pg-boss). Evita Redis/SQS hasta que haga falta.
 - **Worker separado de la web.** Un scouting dura horas; la web nunca ejecuta extracción. El worker escribe eventos y progreso; la web los sirve por SSE.
-- **Fit score determinista.** Cinco componentes con pesos del brief: Topic (requisitos micro y categorías), Audience (ubicación y edad de CreatorDB vs brief), Engagement (ER vs mínimo y benchmark por tamaño), Brand safety (flags), Rate vs budget (tarifa estimada por seguidores vs presupuesto/creadoras). El LLM solo redacta `summary`, `pros` y `cons` a partir de la evidencia; nunca decide el número.
+- **Fit score determinista.** Cuatro componentes con pesos del brief: Topic (requisitos micro y categorías), Audience (ubicación y edad de CreatorDB vs brief), Engagement (ER vs mínimo y benchmark por tamaño), Brand safety (flags). El presupuesto no puntúa ni filtra. El LLM solo redacta `summary`, `pros` y `cons` a partir de la evidencia; nunca decide el número.
 - **Costos controlados por scouting.** Presupuesto máximo en USD por corrida (ya existe en BriefSpec) y contadores por proveedor en `extraction_jobs`.
 - **Email al terminar** con SES (el diseño lo promete en dos pantallas).
 

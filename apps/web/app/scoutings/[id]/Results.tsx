@@ -88,7 +88,7 @@ export function Results({ id, results, diagnostic }: { id: string; results: Scou
         </div>
       </section>
 
-      {cur && (() => { const t = tierColor(cur.fit); const parts = Object.entries(cur.fit_parts) as Array<[keyof FitParts, number]>; const isSaved = !!saved[cur.creator_id]; return (
+      {cur && (() => { const t = tierColor(cur.fit); const parts = (Object.entries(cur.fit_parts) as Array<[keyof FitParts, number]>).filter(([k]) => k in FIT_LABELS); const isSaved = !!saved[cur.creator_id]; return (
         <aside aria-label="Creator details" className="card" style={{ flex: "1 1 340px", maxWidth: 420, minWidth: 0, display: "flex", flexDirection: "column", boxShadow: "var(--shadow-2)", overflow: "hidden" }}>
           <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, borderBottom: "1px solid var(--line-3)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -125,8 +125,8 @@ export function Results({ id, results, diagnostic }: { id: string; results: Scou
               </div>
             ))}
           </div>
-          <div style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, borderBottom: "1px solid var(--line-3)" }}>
-            {[["Followers", fmtK(cur.followers)], ["Engagement", fmtPct(cur.er)], ["Target audience", cur.target_audience_pct == null ? "—" : `${Math.round(cur.target_audience_pct)}%`], ["Estimated rate", cur.estimated_rate_usd == null ? "—" : `~$${cur.estimated_rate_usd.toLocaleString("en-US")}`]].map(([k, v]) => (
+          <div style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, borderBottom: "1px solid var(--line-3)" }}>
+            {[["Followers", fmtK(cur.followers)], ["Engagement", fmtPct(cur.er)], ["Target audience", cur.target_audience_pct == null ? "—" : `${Math.round(cur.target_audience_pct)}%`]].map(([k, v]) => (
               <div key={k} style={{ padding: "10px 12px", borderRadius: 10, background: "var(--chip-3)", display: "flex", flexDirection: "column", gap: 3 }}><span style={{ fontSize: 12, color: "var(--muted)" }}>{k}</span><span className="mono" style={{ fontSize: 15, fontWeight: 500 }}>{v}</span></div>
             ))}
           </div>
