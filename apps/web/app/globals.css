@@ -68,6 +68,11 @@ textarea.in { height: auto; min-height: 74px; padding: 10px 12px; line-height: 1
 @keyframes bloom { from { opacity: 0; transform: scale(.92) } to { opacity: 1; transform: none } }
 @media (prefers-reduced-motion: reduce) { .rise, .bloom, .fresh { animation: none } }
 .fresh { animation: rise .4s ease both; }
+@keyframes ripple { from { opacity: .9; transform: scale(.78) } to { opacity: 0; transform: scale(1.25) } }
+.orb-ripple { animation: ripple 1.6s cubic-bezier(.2,.6,.2,1) both; }
+@keyframes tick { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: none } }
+.tick { animation: tick .35s ease both; }
+@media (prefers-reduced-motion: reduce) { .orb-ripple, .tick { animation: none } .orb-ripple { display: none } }
 .ex { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--glass-line); border-radius: 14px; background: var(--glass); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); box-shadow: var(--shadow-1); text-align: left; cursor: pointer; transition: border-color .16s ease; }
 .ex:hover { border-color: #CFCFD5; }
 .chip { height: 26px; padding: 0 9px 0 7px; display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 500; }

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { Orb, type OrbMode } from "@/components/Orb";
+import { LiveOrb, Orb, type OrbMode } from "@/components/Orb";
 import { HudRings } from "@/components/HudRings";
 import { Avatar } from "@/components/FitRing";
 import { cancelScouting, setNotify } from "@/lib/actions";
@@ -33,6 +33,7 @@ export function Progress({ id, name, subtitle, initial, notifyEmail, email, coun
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  const activity = events.length ? events[0].id : 0;
   const stageN = Math.max(1, Math.min(5, snap.stage || 1));
   const stage = STAGES[stageN - 1];
   const m = snap.metrics;
@@ -83,12 +84,13 @@ export function Progress({ id, name, subtitle, initial, notifyEmail, email, coun
           <figure className="card" style={{ margin: 0, position: "relative", padding: "56px 28px 28px", display: "flex", flexDirection: "column", alignItems: "center", gap: 18, borderRadius: 18 }}>
             <span aria-hidden="true" style={{ position: "absolute", top: 12, left: 12, width: 5, height: 5, borderRadius: "50%", border: "1px solid #D4D4DA" }} />
             <span aria-hidden="true" style={{ position: "absolute", top: 12, right: 12, width: 5, height: 5, borderRadius: "50%", border: "1px solid #D4D4DA" }} />
-            <div aria-hidden="true" style={{ position: "absolute", left: "calc(50% - 190px)", top: -10, pointerEvents: "none" }}><HudRings px={380} /></div>
             <span className="mono" style={{ position: "absolute", top: 22, left: 26, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--muted)" }}>Fig. 02 — In progress</span>
             <span className="mono" style={{ position: "absolute", top: 22, right: 26, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--muted)" }}>Stage {String(stageN).padStart(2, "0")} / 05</span>
 
-            <div style={{ position: "relative", width: 720, maxWidth: "100%", height: 360 }}>
-              <div style={{ position: "absolute", left: "calc(50% - 140px)", top: 40 }}><Orb mode={stage.mode as OrbMode} px={280} /></div>
+            <div style={{ position: "relative", width: 720, maxWidth: "100%", height: 360, overflow: "visible" }}>
+              {/* Anillos y orbe comparten centro: (50 %, 180 px) del escenario. */}
+              <div aria-hidden="true" style={{ position: "absolute", left: "calc(50% - 190px)", top: -10, pointerEvents: "none" }}><HudRings px={380} speed={queued ? 0.5 : 1 + Math.min(1, activity / 40)} /></div>
+              <div style={{ position: "absolute", left: "calc(50% - 140px)", top: 40 }}><LiveOrb mode={stage.mode as OrbMode} px={280} activity={activity} passed={m.passed ?? 0} idle={queued} done={failed || cancelled} /></div>
               <div className="hide-sm" aria-hidden="true">
                 {[[172, 100, 281], [172, 260, 281], [438, 100, 433], [438, 260, 433]].map(([l, t, d], i) => (
                   <span key={i} style={{ display: "contents" }}>
@@ -114,6 +116,11 @@ export function Progress({ id, name, subtitle, initial, notifyEmail, email, coun
             <figcaption style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, maxWidth: 480, textAlign: "center" }}>
               <h2 style={{ margin: 0, fontSize: 22, lineHeight: 1.2, fontWeight: 600, letterSpacing: "-0.02em" }}>{queued ? "Waiting for a worker" : stage.title}</h2>
               <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "var(--ink-3)", textWrap: "pretty" }}>{queued ? "Your scouting is queued and will start in a moment." : stage.description}</p>
+              {!queued && !failed && !cancelled && events[0] && (
+                <span key={events[0].id} className="mono tick" style={{ marginTop: 6, maxWidth: 440, fontSize: 11.5, lineHeight: 1.5, letterSpacing: "0.01em", color: "var(--muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  › {events[0].text}
+                </span>
+              )}
             </figcaption>
 
             <div style={{ width: "100%", marginTop: 10, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10, borderRadius: 12, background: "rgba(11,11,12,0.035)" }}>
