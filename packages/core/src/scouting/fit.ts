@@ -33,10 +33,15 @@ export function erBenchmark(followers: number | null): number {
   return 0.015;
 }
 
-/** Tarifa estimada por pieza en USD a partir de seguidores y plataforma. Heurística pública, se reemplaza por datos reales cuando existan. */
-export function estimateRateUsd(followers: number | null, platform: string | null): number | null {
+/** USD por cada 1.000 seguidores por pieza en Instagram, según el mercado del creador. Heurística pública; se reemplaza por tarifas reales cuando existan. */
+export const RATE_PER_K_BY_COUNTRY: Record<string, number> = { US: 10, ES: 7, BR: 4, MX: 4, CL: 4, AR: 3, CO: 3, PE: 3 };
+const RATE_PER_K_DEFAULT = 5;
+
+/** Tarifa estimada por pieza en USD a partir de seguidores, plataforma y país del mercado (el del brief si el creador no lo declara). */
+export function estimateRateUsd(followers: number | null, platform: string | null, country?: string | null): number | null {
   if (!followers) return null;
-  const perThousand = platform === "youtube" ? 20 : platform === "tiktok" ? 8 : 10;
+  const base = (country && RATE_PER_K_BY_COUNTRY[country.toUpperCase()]) || RATE_PER_K_DEFAULT;
+  const perThousand = platform === "youtube" ? base * 2 : platform === "tiktok" ? base * 0.8 : base;
   return Math.round((followers / 1000) * perThousand);
 }
 

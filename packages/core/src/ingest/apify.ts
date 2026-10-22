@@ -14,47 +14,63 @@ const ACTOR = process.env.APIFY_INSTAGRAM_ACTOR ?? "apify/instagram-scraper";
 export interface ApifyIngestOptions {
   hashtags?: string[];
   profiles?: string[];
+  /** Búsqueda de perfiles por palabra clave (searchType=user). */
+  queries?: string[];
   maxPostsPerProfile?: number;
-  /** Máximo de posts por hashtag y de perfiles a detallar tras un hashtag. */
+  /** Máximo de posts por hashtag, de perfiles por búsqueda y de perfiles a detallar. */
   limit?: number;
   log?: (s: string) => void;
 }
 
-export async function ingestFromApify(opts: ApifyIngestOptions): Promise<IngestedCreator[]> {
+export interface ApifyIngestResult { creators: IngestedCreator[]; costUsd: number; runs: string[] }
+
+/** Ejecuta el actor y devuelve los items más el costo real de la corrida (usageTotalUsd). */
+async function runActor(client: ApifyClient, input: Record<string, unknown>, log: (s: string) => void, label: string): Promise<{ items: Array<Record<string, unknown>>; costUsd: number; runId: string }> {
+  const run = await client.actor(ACTOR).call(input);
+  const { items } = await client.dataset(run.defaultDatasetId).listItems();
+  const info = await client.run(run.id).get();
+  const costUsd = Number(info?.usageTotalUsd ?? 0);
+  log(`apify ${label}: ${items.length} items, ${costUsd.toFixed(3)} USD (run ${run.id})`);
+  return { items: items as Array<Record<string, unknown>>, costUsd, runId: run.id };
+}
+
+export async function ingestFromApify(opts: ApifyIngestOptions): Promise<ApifyIngestResult> {
   if (!isLive("apify")) throw new Error("APIFY_TOKEN no configurado: usa `scout ingest fixtures` o configura la clave.");
   const client = new ApifyClient({ token: config.apifyToken });
   const log = opts.log ?? (() => {});
   const maxPosts = opts.maxPostsPerProfile ?? 30;
   const limit = opts.limit ?? 100;
   const out = new Map<string, IngestedCreator>();
+  let costUsd = 0; const runs: string[] = [];
 
   const runDetails = async (handles: string[], via: string) => {
-    if (!handles.length) return;
-    const run = await client.actor(ACTOR).call({
-      directUrls: handles.map((h) => `https://www.instagram.com/${h.replace(/^@/, "")}/`),
-      resultsType: "details",
-      resultsLimit: maxPosts,
-    });
-    const { items } = await client.dataset(run.defaultDatasetId).listItems();
-    log(`apify details: ${items.length} perfiles (run ${run.id})`);
-    for (const c of normalizeApifyItems(items as Array<Record<string, unknown>>, via, maxPosts)) out.set(c.handle, c);
+    const pending = [...new Set(handles.map((h) => h.replace(/^@/, "").toLowerCase()))].filter((h) => h && !out.get(h)?.bio);
+    if (!pending.length) return;
+    const r = await runActor(client, { directUrls: pending.map((h) => `https://www.instagram.com/${h}/`), resultsType: "details", resultsLimit: maxPosts }, log, `details(${pending.length})`);
+    costUsd += r.costUsd; runs.push(r.runId);
+    for (const c of normalizeApifyItems(r.items, via, maxPosts)) out.set(c.handle, { ...c, posts: c.posts.length ? c.posts : (out.get(c.handle)?.posts ?? []) });
   };
 
   if (opts.profiles?.length) await runDetails(opts.profiles, `apify:${ACTOR}:profiles`);
 
-  if (opts.hashtags?.length) {
-    const run = await client.actor(ACTOR).call({
-      directUrls: opts.hashtags.map((h) => `https://www.instagram.com/explore/tags/${h.replace(/^#/, "")}/`),
-      resultsType: "posts",
-      resultsLimit: limit,
-    });
-    const { items } = await client.dataset(run.defaultDatasetId).listItems();
-    log(`apify posts: ${items.length} posts por hashtag (run ${run.id})`);
-    const discovered = normalizeApifyItems(items as Array<Record<string, unknown>>, `apify:${ACTOR}:hashtag`, maxPosts);
-    for (const c of discovered) if (!out.has(c.handle)) out.set(c.handle, c);
-    await runDetails(discovered.map((c) => c.handle).filter((h) => !opts.profiles?.includes(h)).slice(0, limit), `apify:${ACTOR}:hashtag`);
+  if (opts.queries?.length) {
+    const found: string[] = [];
+    for (const q of opts.queries) {
+      const r = await runActor(client, { search: q, searchType: "user", searchLimit: Math.min(limit, 50), resultsType: "details", resultsLimit: maxPosts }, log, `search "${q}"`);
+      costUsd += r.costUsd; runs.push(r.runId);
+      for (const c of normalizeApifyItems(r.items, `apify:${ACTOR}:search:${q}`, maxPosts)) { if (!out.has(c.handle)) out.set(c.handle, c); found.push(c.handle); }
+    }
+    await runDetails(found, `apify:${ACTOR}:search`);
   }
-  return [...out.values()];
+
+  if (opts.hashtags?.length) {
+    const r = await runActor(client, { directUrls: opts.hashtags.map((h) => `https://www.instagram.com/explore/tags/${h.replace(/^#/, "")}/`), resultsType: "posts", resultsLimit: limit }, log, `hashtags(${opts.hashtags.length})`);
+    costUsd += r.costUsd; runs.push(r.runId);
+    const discovered = normalizeApifyItems(r.items, `apify:${ACTOR}:hashtag`, maxPosts);
+    for (const c of discovered) if (!out.has(c.handle)) out.set(c.handle, c);
+    await runDetails(discovered.map((c) => c.handle).slice(0, limit), `apify:${ACTOR}:hashtag`);
+  }
+  return { creators: [...out.values()], costUsd, runs };
 }
 
 /** Normaliza items de `details` (perfil con latestPosts) y de `posts` (post suelto con ownerUsername). Exportado para tests. */
@@ -71,6 +87,10 @@ export function normalizeApifyItems(items: Array<Record<string, unknown>>, disco
         followers: num(src.followersCount ?? src.follower_count),
         following: num(src.followsCount ?? src.following_count),
         posts_count: num(src.postsCount ?? src.media_count),
+        is_business: typeof src.isBusinessAccount === "boolean" ? src.isBusinessAccount : null,
+        business_category: str(src.businessCategoryName),
+        is_verified: typeof src.verified === "boolean" ? src.verified : typeof src.isVerified === "boolean" ? src.isVerified : null,
+        avatar_url: str(src.profilePicUrlHD ?? src.profilePicUrl),
         posts: [],
         discovered_via: discoveredVia,
       };
@@ -79,6 +99,9 @@ export function normalizeApifyItems(items: Array<Record<string, unknown>>, disco
       c.bio ??= str(src.biography);
       c.followers ??= num(src.followersCount);
       c.display_name ??= str(src.fullName);
+      c.is_business ??= typeof src.isBusinessAccount === "boolean" ? src.isBusinessAccount : null;
+      c.business_category ??= str(src.businessCategoryName);
+      c.avatar_url ??= str(src.profilePicUrlHD ?? src.profilePicUrl);
     }
     return c;
   };
@@ -111,10 +134,19 @@ function addPost(c: IngestedCreator, it: Record<string, unknown>, maxPosts: numb
     likes: num(it.likesCount ?? it.like_count) ?? undefined,
     comments: num(it.commentsCount ?? it.comment_count) ?? undefined,
     views: num(it.videoViewCount ?? it.videoPlayCount) ?? undefined,
+    location_name: str(it.locationName),
+    hashtags: Array.isArray(it.hashtags) ? (it.hashtags as unknown[]).map(String).map((h) => h.toLowerCase()) : extractTags(str(it.caption) ?? ""),
+    mentions: [...new Set([
+      ...(Array.isArray(it.mentions) ? (it.mentions as unknown[]).map(String) : []),
+      ...(Array.isArray(it.taggedUsers) ? (it.taggedUsers as Array<Record<string, unknown>>).map((u) => String(u.username ?? "")) : []),
+      ...extractMentions(str(it.caption) ?? ""),
+    ].map((m) => m.toLowerCase().replace(/^@/, "")).filter(Boolean))],
     raw: it,
   };
   c.posts.push(post);
 }
 
 function num(v: unknown): number | null { return typeof v === "number" && Number.isFinite(v) ? v : null; }
+export function extractTags(text: string): string[] { return [...new Set((text.match(/#[\p{L}\p{N}_]+/gu) ?? []).map((t) => t.slice(1).toLowerCase()))]; }
+export function extractMentions(text: string): string[] { return [...new Set((text.match(/@[\w.]+/g) ?? []).map((t) => t.slice(1).toLowerCase().replace(/\.$/, "")))]; }
 function str(v: unknown): string | null { return typeof v === "string" && v.length ? v : null; }

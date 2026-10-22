@@ -113,3 +113,55 @@ export async function enrichAudience(creatorId: string, handle: string, opts: { 
   await recordJob(key, "done", cost);
   return { ran: true, costUsd: cost, data };
 }
+
+/* ───────── Descubrimiento: búsqueda de creadoras por filtros (1 crédito por página de hasta 100) ───────── */
+
+export interface CreatorSearchInput {
+  countriesAlpha3: string[];
+  followersMin?: number | null;
+  followersMax?: number | null;
+  /** ISO 639-3: spa, eng, por */
+  language?: string | null;
+  hashtags?: string[];
+  niches?: string[];
+  pageSize?: number;
+  offset?: number;
+}
+export interface CreatorSearchHit { handle: string; displayName: string | null; followers: number | null; avatarUrl: string | null }
+export interface CreatorSearchResult { hits: CreatorSearchHit[]; total: number; nextOffset: number | null; creditsUsed: number; costUsd: number }
+
+export async function searchCreators(i: CreatorSearchInput): Promise<CreatorSearchResult> {
+  if (!isLive("creatordb")) return { hits: [], total: 0, nextOffset: null, creditsUsed: 0, costUsd: 0 };
+  const filters: Array<Record<string, unknown>> = [];
+  if (i.countriesAlpha3.length === 1) filters.push({ filterName: "country", op: "=", value: i.countriesAlpha3[0] });
+  else if (i.countriesAlpha3.length) filters.push({ filterName: "country", op: "in", value: i.countriesAlpha3.slice(0, 100) });
+  if (i.followersMin) filters.push({ filterName: "totalFollowers", op: ">", value: i.followersMin });
+  if (i.followersMax) filters.push({ filterName: "totalFollowers", op: "<", value: i.followersMax });
+  if (i.language) filters.push({ filterName: "mainLanguage", op: "=", value: i.language });
+  if (i.hashtags?.length) filters.push({ filterName: "hashtags", op: "in", value: i.hashtags.slice(0, 100) });
+  if (i.niches?.length) filters.push({ filterName: "niches", op: "in", value: i.niches.slice(0, 100) });
+  if (!filters.length) throw new Error("searchCreators: hace falta al menos un filtro");
+  const j = await cdb<{ success: boolean; errorCode?: string; errorDescription?: string; creditsUsed?: number; data?: { creatorList?: Array<Record<string, unknown>>; totalResults?: number; hasNextPage?: boolean; nextOffset?: number } }>(
+    `/instagram/search`, { method: "POST", body: JSON.stringify({ filters, sortBy: "totalFollowers", desc: true, pageSize: Math.min(100, i.pageSize ?? 50), offset: i.offset ?? 0 }) });
+  if (!j.success) throw new Error(`CreatorDB search ${j.errorCode}: ${j.errorDescription}`);
+  const hits = (j.data?.creatorList ?? []).map((c) => ({ handle: String(c.uniqueId ?? "").replace(/^@/, "").toLowerCase(), displayName: (c.displayName as string) ?? null, followers: typeof c.totalFollowers === "number" ? c.totalFollowers : null, avatarUrl: (c.avatarUrl as string) ?? null })).filter((h) => h.handle);
+  const creditsUsed = j.creditsUsed ?? Math.ceil(filters.length / 10);
+  return { hits, total: j.data?.totalResults ?? hits.length, nextOffset: j.data?.hasNextPage ? (j.data.nextOffset ?? null) : null, creditsUsed, costUsd: creditsUsed * USD_PER_CREDIT };
+}
+
+let nichesCache: string[] | null = null;
+/** Lista de nichos de Instagram que acepta el filtro `niches`. Se cachea en memoria. */
+export async function listNiches(): Promise<string[]> {
+  if (nichesCache) return nichesCache;
+  if (!isLive("creatordb")) return [];
+  try {
+    const j = await cdb<{ success: boolean; data?: unknown }>(`/instagram/niches`, { method: "GET" });
+    const d = j.data as unknown;
+    const arr = Array.isArray(d) ? d : Array.isArray((d as { niches?: unknown })?.niches) ? (d as { niches: unknown[] }).niches : [];
+    nichesCache = arr.map((x) => (typeof x === "string" ? x : String((x as { name?: unknown; id?: unknown }).name ?? (x as { id?: unknown }).id ?? ""))).filter(Boolean);
+  } catch (e) {
+    console.warn(`[creatordb] no se pudo listar nichos: ${e instanceof Error ? e.message : e}`);
+    nichesCache = [];
+  }
+  return nichesCache;
+}

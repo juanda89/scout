@@ -190,6 +190,25 @@ export const SEED_PREDICATES: PredicateInput[] = [
     },
   },
   {
+    key: "account.kind",
+    label: "Tipo de cuenta: creadora, negocio o medio",
+    tier: "macro",
+    value_type: "enum",
+    value_schema: { values: ["creator", "business", "media", "unknown"] },
+    temporal_kind: "slow",
+    cardinality: "one",
+    extraction_spec: {
+      provider: "jev",
+      modalities: ["bio"],
+      jev: {
+        type: "choice",
+        instructions: "Según la bio y el nombre de usuario, ¿esta cuenta de Instagram es de una persona creadora de contenido (habla en primera persona, muestra su vida, reseñas, recomendaciones), de un negocio (restaurante, tienda, marca, servicio, menciona horarios, pedidos, domicilios, sedes) o de un medio/agregador (revista, página de recomendaciones sin persona detrás)?",
+        criteria: { creator: "Persona creadora de contenido", business: "Negocio, marca, local o servicio", media: "Medio, revista o página agregadora", unknown: "No se puede saber" },
+        none_labels: ["unknown"],
+      },
+    },
+  },
+  {
     key: "sponsorship.has_history",
     label: "Tiene historial de contenido patrocinado",
     tier: "macro",

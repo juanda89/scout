@@ -133,6 +133,33 @@ Lo que hace el compilador, en orden:
 5. Estima costo con los contadores del embudo y lo muestra.
 6. Un humano aprueba, edita o rechaza. El BriefSpec aprobado se versiona.
 
+## 4b. Descubrimiento: cómo se encuentran las candidatas
+
+Buscar publicaciones por hashtag encuentra negocios, no creadoras: quien publica con #comidamedellin es el restaurante. Las creadoras grandes casi no usan hashtags. Por eso el descubrimiento (`packages/core/src/scouting/discovery.ts`) funciona como una persona: prueba una fuente, mide cuántos perfiles útiles aporta y cambia de estrategia o profundiza.
+
+| Orden | Estrategia | Qué hace | Costo típico |
+|---|---|---|---|
+| 0 | **Releer el índice** | Antes de gastar: sobre los perfiles ya guardados busca la zona del brief en handle, nombre, bio, geotags, captions y hashtags (`cityEvidence`). Sin costo. | 0 |
+| 1 | **Índice de CreatorDB** | Búsqueda por país, rango de seguidores, idioma, hashtags usados (incluidos los de la zona: #medellin, #paisa) y nichos, con paginación. La variante por tamaño recorre el rango en bandas de seguidores, porque el índice ordena por seguidores y una sola página se queda pegada al tope del rango. Los perfiles se completan con Apify (bio y posts). | 1 crédito por página de 50 (0,04 USD) + detalle Apify |
+| 2 | **Búsqueda de perfiles** | Búsqueda de usuarios de Instagram por palabra clave: tema × lugar ("foodie medellín"). | Apify por resultado |
+| 3 | **Bola de nieve** | De las cuentas que ya pasan los filtros: hashtags reales que usan (así aparece #medellingourmet, que nadie adivinaría) y cuentas que mencionan o etiquetan. | Apify por resultado |
+| 4 | **Hashtags localizados** | Solo semillas con nombre de lugar o suficientemente específicas; nunca genéricas como #streetfood. | Apify por post |
+| 5 | **Segunda bola de nieve** | Con lo aprendido en las rondas anteriores. | |
+
+Cada estrategia registra en `discovery_runs` cuántos perfiles trajo, cuántos nuevos pasaron los filtros macro y cuánto costó. El bucle se detiene al alcanzar unas ocho candidatas por creadora pedida (mínimo 30, máximo 150) o al agotar el presupuesto de descubrimiento (`SCOUT_DISCOVERY_MAX_USD`, 3 USD por defecto).
+
+Clasificación con control de costo: primero Jev sobre bio y captions (centavos); la extracción de ciudad con LLM solo si idioma y país encajan con el brief y las señales determinísticas no la dieron ya. Si un proveedor falla (503, límite de tasa), el cliente de OpenRouter reintenta con espera exponencial y modelos de respaldo; un perfil que aun así no se pudo clasificar queda en el índice para la siguiente corrida y la estrategia no se pierde.
+
+**Creadora o negocio.** La plataforma marca las cuentas de negocio (`isBusinessAccount`) y eso se guarda como claim `account.kind` con confianza 0,97; si no es obvio, Jev lo decide por la bio y el handle. El filtro macro excluye negocios y medios.
+
+**Ubicación lógica.** El brief se expande con un LLM a su alcance real (`expandLocation`): una ciudad incluye su área metropolitana, un departamento o región incluye todos sus municipios, "Latinoamérica" incluye todos sus países. Ciudad es filtro duro solo cuando el brief baja de país; país siempre. Las ciudades se comparan normalizadas (sin acentos ni mayúsculas). La evidencia de ciudad se obtiene primero sin IA, como la leería una persona: la ciudad o sus apodos (mde, medallo, paisa) en el handle o el nombre (confianza 0,85), en la bio (0,9), dos o más geotags de la zona (0,9), cuatro o más menciones en captions o hashtags (0,9) o dos o tres menciones (0,8). Una sola mención en un caption no cuenta. Cada señal queda como claim con su cita, así que el filtro sigue siendo duro pero se decide con toda la evidencia disponible, no solo con la bio. En la prueba con el brief de foodies de Medellín esto subió las candidatas macro de 1 a 6 sobre el mismo índice, sin gastar un centavo más.
+
+**Control de gasto por etapa.** Descubrimiento: `SCOUT_DISCOVERY_MAX_USD` (3 USD). Informes de audiencia de CreatorDB (10 créditos, 0,40 USD cada uno): solo para las mejores por fit preliminar, el doble de las creadoras pedidas (mínimo 6), con tope `SCOUT_AUDIENCE_MAX_USD` (4 USD). En la segunda prueba de foodies, sin este tope, 30 informes costaron 12 USD de un total de 12,97. La tarifa estimada por pieza depende del mercado (`RATE_PER_K_BY_COUNTRY`: 3 USD por mil seguidores en Colombia, 10 en Estados Unidos); con 1 centavo por seguidor para todos, ninguna creadora colombiana cabía en un presupuesto real.
+
+**Orden de resultados.** Primero las creadoras que cumplen los requisitos duros con evidencia (PASS), después las que no se pudieron verificar (UNKNOWN), y dentro de cada grupo por fit. Un perfil con engagement altísimo pero sin evidencia del tema nunca desplaza a uno verificado.
+
+**Diagnóstico.** Si tras descubrir hay menos candidatas que las pedidas, el pipeline calcula qué filtro dejó fuera a la mayoría (rango de seguidores, país, ciudad, categoría, tipo de cuenta) y lo muestra con números en la pantalla de resultados.
+
 ## 5. El embudo de ejecución
 
 ```

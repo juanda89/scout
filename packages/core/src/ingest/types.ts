@@ -9,6 +9,9 @@ export interface IngestedPost {
   likes?: number;
   comments?: number;
   views?: number;
+  location_name?: string | null;
+  hashtags?: string[];
+  mentions?: string[];
   raw?: unknown;
 }
 
@@ -20,6 +23,10 @@ export interface IngestedCreator {
   followers?: number | null;
   following?: number | null;
   posts_count?: number | null;
+  is_business?: boolean | null;
+  business_category?: string | null;
+  is_verified?: boolean | null;
+  avatar_url?: string | null;
   posts: IngestedPost[];
   discovered_via: string;
 }

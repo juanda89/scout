@@ -21,7 +21,10 @@ export function buildMacroWhere(filters: BriefSpec["macro_filters"]): { sql: str
     }
     const col = `f.facets -> ${add(key)}`;
     if (f.eq !== undefined) clauses.push(`${col} @> ${add(JSON.stringify([f.eq]))}::jsonb`);
-    if (f.any_of?.length) clauses.push(`(${f.any_of.map((v) => `${col} @> ${add(JSON.stringify([v]))}::jsonb`).join(" OR ")})`);
+    if (f.any_of?.length) {
+      if (f.any_of.length > 6 && f.any_of.every((v) => typeof v === "string")) clauses.push(`${col} ?| ${add(f.any_of)}::text[]`);
+      else clauses.push(`(${f.any_of.map((v) => `${col} @> ${add(JSON.stringify([v]))}::jsonb`).join(" OR ")})`);
+    }
     if (f.none_of?.length) clauses.push(`NOT (${f.none_of.map((v) => `COALESCE(${col} @> ${add(JSON.stringify([v]))}::jsonb, false)`).join(" OR ")})`);
   }
   return { sql: clauses.length ? clauses.join(" AND ") : "true", params };

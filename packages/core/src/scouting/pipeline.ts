@@ -4,8 +4,6 @@ import { compileBrief } from "../brief/compile.js";
 import { validateSpec } from "../brief/validate.js";
 import { approveSpec, createBrief, saveSpec } from "../brief/store.js";
 import { listPredicates, predicateMap } from "../registry/registry.js";
-import { ingestFromApify } from "../ingest/apify.js";
-import { storeCreators } from "../ingest/store.js";
 import { extractPredicates } from "../extract/run.js";
 import { listClaimsForCreators } from "../extract/claims.js";
 import { refreshFacets } from "../funnel/facets.js";
@@ -20,7 +18,8 @@ import { addEvent, getScouting, mergeMetrics, setStage, updateScouting, upsertRe
 import { briefTextFrom } from "./fields.js";
 import { deriveSeeds } from "./seeds.js";
 import { computeFit, estimateRateUsd, FX_TO_USD } from "./fit.js";
-import { audienceInAgeRange, audienceInCountries } from "./geo.js";
+import { audienceInAgeRange, audienceInCountries, expandLocation, normCity, type GeoScope } from "./geo.js";
+import { runDiscovery } from "./discovery.js";
 import { explainResults, type ExplainInput } from "./explain.js";
 import { STAGES, tierOf, type Scouting, type ScoutingResult } from "./types.js";
 
@@ -28,7 +27,7 @@ import { STAGES, tierOf, type Scouting, type ScoutingResult } from "./types.js";
 const LIMITS = {
   ingestPostsPerHashtag: Number(process.env.SCOUT_INGEST_POSTS_PER_HASHTAG ?? 40),
   ingestMaxProfiles: Number(process.env.SCOUT_INGEST_MAX_PROFILES ?? 60),
-  audienceMaxCredits: Number(process.env.SCOUT_AUDIENCE_MAX_CREDITS ?? 400),  // 40 perfiles a 10 créditos
+  audienceMaxUsd: Number(process.env.SCOUT_AUDIENCE_MAX_USD ?? 4),   // informes de audiencia de CreatorDB: 10 créditos (0,40 USD) por perfil
   explainTop: Number(process.env.SCOUT_EXPLAIN_TOP ?? 30),
 };
 
@@ -58,7 +57,10 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
     const registry = await listPredicates();
     const compiled = await compileBrief(text, registry, s.name);
     cost += Number(compiled.compiledBy.costUsd ?? 0);
-    const spec = applyFieldsToSpec(compiled.spec, s);
+    const geo = await expandLocation(s.fields.location, s.fields.countries);
+    await ev(1, geo.level === "multi_country" ? `Location: ${geo.label} → ${geo.countries.length} countries` : geo.cities.length ? `Location: ${geo.label} → ${geo.cities.length} cities/municipalities in ${geo.countries.join(", ")}` : `Location: ${geo.label} (${geo.countries.join(", ") || "any country"})`);
+    await mergeMetrics(scoutingId, { geo } as Record<string, unknown>);
+    const spec = applyFieldsToSpec(compiled.spec, s, geo);
     const errors = validateSpec(spec, new Map(registry.map((p) => [p.key, p])));
     if (errors.length) throw new Error(`La especificación compilada no es válida: ${errors.join("; ")}`);
     const briefId = await createBrief(s.name, text);
@@ -78,38 +80,28 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
     const seeds = await deriveSeeds(s.fields);
     await ev(2, `Search seeds: ${seeds.hashtags.map((h) => "#" + h).join(" ")}`);
     const platforms = s.fields.platforms.length ? s.fields.platforms : ["instagram"];
-    let ingested: string[] = [];
-    if (process.env.SCOUT_INGEST !== "0" && isLive("apify") && platforms.includes("instagram") && seeds.hashtags.length) {
-      try {
-        const creators = await ingestFromApify({ hashtags: seeds.hashtags, limit: LIMITS.ingestPostsPerHashtag, maxPostsPerProfile: 12, log: (m) => log("  " + m) });
-        const limited = creators.slice(0, LIMITS.ingestMaxProfiles);
-        const r = await storeCreators(limited);
-        ingested = limited.map((c) => c.handle);
-        cost += r.posts * 0.0005;
-        await ev(2, `${r.creators} profiles found on Instagram (${r.posts} posts)`);
-      } catch (e) {
-        await ev(2, `Instagram search failed, continuing with the existing index: ${e instanceof Error ? e.message : e}`, "warn");
-      }
+    const wanted = s.fields.creators_wanted ?? 15;
+    let disc = { costUsd: 0, pool: 0, passing: 0, strategies: [] as Array<{ strategy: string; found: number; newProfiles: number; passing: number; costUsd: number }> };
+    if (process.env.SCOUT_INGEST !== "0") {
+      disc = await runDiscovery({ scoutingId, fields: s.fields, geo, spec, platforms, wanted, seeds: seeds.hashtags, log, ev: (t, k, d) => ev(2, t, k, d) });
+      cost += disc.costUsd;
+      await progress(1);
     } else {
-      await ev(2, isLive("apify") ? "Only the existing creator index is used for the selected platforms" : "Using the existing creator index (Apify not configured)");
-    }
-    // Clasificación macro (barata) de todo lo que no tenga facetas al día.
-    const macro = registry.filter((p) => p.tier === "macro");
-    const { rows: pending } = await db().query(
-      `SELECT c.id, c.handle FROM creators c LEFT JOIN creator_facets f ON f.creator_id = c.id
-       WHERE c.platform = ANY($1) AND (f.creator_id IS NULL OR f.refreshed_at < c.last_crawled OR c.handle = ANY($2))`, [platforms, ingested]);
-    let i = 0;
-    for (const c of pending) {
-      const r = await extractPredicates(c.id, c.handle, macro);
-      cost += r.costUsd;
-      await refreshFacets(c.id);
-      if (r.ran.length) await ev(2, `Classified @${c.handle} (${r.claims} signals)`);
-      await progress(++i / Math.max(1, pending.length));
+      await ev(2, "Using the existing creator index (ingestion disabled)");
+      // Clasifica lo que no tenga facetas, para que el índice local sirva.
+      const macro = registry.filter((p) => p.tier === "macro");
+      const { rows: pending } = await db().query(`SELECT c.id, c.handle FROM creators c LEFT JOIN creator_facets f ON f.creator_id = c.id WHERE c.platform = ANY($1) AND (f.creator_id IS NULL OR f.refreshed_at < c.last_crawled)`, [platforms]);
+      for (const c of pending) { cost += (await extractPredicates(c.id, c.handle, macro)).costUsd; await refreshFacets(c.id); }
     }
     const { rows: [{ n: found }] } = await db().query(`SELECT count(*)::int AS n FROM creators WHERE platform = ANY($1)`, [platforms]);
     const candidates = await macroCandidates(spec.macro_filters, { platforms });
     await mergeMetrics(scoutingId, { found: Number(found), passed: candidates.length, cost_usd: round(cost) });
-    await ev(2, `${candidates.length} of ${found} profiles passed size, location and language filters`);
+    await ev(2, `${candidates.length} of ${found} profiles pass size, location, language and account-type filters`);
+    if (candidates.length < wanted) {
+      const diag = await diagnoseFilters(spec, platforms, s, geo);
+      await mergeMetrics(scoutingId, { diagnostic: diag } as Record<string, unknown>);
+      await ev(2, diag, "warn");
+    }
     await setStage(scoutingId, 2, "done", `${Number(found).toLocaleString("en-US")} profiles found`);
     if (await cancelled()) return;
 
@@ -119,7 +111,7 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
     const needed = requiredPredicates(spec, pmap);
     const toExtract = needed.filter((p) => !["external_api", "none", "metrics"].includes(p.extraction_spec.provider));
     const deep = candidates.slice(0, spec.budget.max_candidates_deep);
-    i = 0;
+    let i = 0;
     for (const c of deep) {
       if (cost > spec.budget.max_usd) { await ev(3, `Budget limit reached (${cost.toFixed(2)} USD); remaining profiles are not analyzed`, "warn"); break; }
       const r = await extractPredicates(c.id, c.handle, toExtract);
@@ -136,7 +128,8 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
     const prelim = deep.map((c) => ({ c, e: evaluateCreator(spec, claimsBy.get(c.id) ?? [], ctx) })).filter((x) => x.e.overall !== "FAIL");
     const dropped = deep.length - prelim.length;
     if (dropped) await ev(3, `Dropped ${dropped} profiles whose content contradicts the brief`, "drop");
-    const prelimRows = prelim.map(({ c, e }) => buildResult(scoutingId, c, e, claimsBy.get(c.id) ?? [], spec, s, true)).sort((a, b) => b.fit - a.fit).slice(0, 10).map((r, idx) => ({ ...r, rank: idx + 1 }));
+    const prelimAll = prelim.map(({ c, e }) => buildResult(scoutingId, c, e, claimsBy.get(c.id) ?? [], spec, s, true)).sort(byEvidenceThenFit);
+    const prelimRows = prelimAll.slice(0, 10).map((r, idx) => ({ ...r, rank: idx + 1 }));
     await upsertResults(scoutingId, prelimRows);
     for (const r of prelimRows.slice(0, 3)) await ev(3, `@${(deep.find((c) => c.id === r.creator_id) ?? { handle: "?" }).handle} added to strong candidates (~${r.fit})`, "find");
     await mergeMetrics(scoutingId, { strong: prelimRows.filter((r) => r.fit >= 80).length });
@@ -145,9 +138,12 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
 
     /* ───────── 04 · Evaluating audiences ───────── */
     await setStage(scoutingId, 4, "running");
-    const needAudience = prelim.map((x) => x.c);
-    const maxAud = Math.floor(LIMITS.audienceMaxCredits / 10);
-    if (needAudience.length > maxAud) await ev(4, `Checking audiences for the top ${maxAud} of ${needAudience.length} candidates (credit limit)`, "warn");
+    // Los informes de audiencia cuestan 0,40 USD cada uno: solo para las mejores por fit preliminar (el doble de las pedidas, mínimo 6), con tope en dólares.
+    const byPrelim = new Map(prelimAll.map((r, idx) => [r.creator_id, idx]));
+    const needAudience = prelim.map((x) => x.c).sort((a, b) => (byPrelim.get(a.id) ?? 1e9) - (byPrelim.get(b.id) ?? 1e9));
+    const perReport = 10 * Number(process.env.CREATORDB_USD_PER_CREDIT ?? 0.04);
+    const maxAud = Math.max(1, Math.min(Math.floor(LIMITS.audienceMaxUsd / perReport), Math.max(6, wanted * 2)));
+    if (needAudience.length > maxAud) await ev(4, `Checking audiences for the top ${maxAud} of ${needAudience.length} candidates (${perReport.toFixed(2)} USD per report)`);
     i = 0;
     for (const c of needAudience.slice(0, maxAud)) {
       try {
@@ -170,7 +166,7 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
     await setStage(scoutingId, 5, "running");
     claimsBy = await listClaimsForCreators(deep.map((c) => c.id), keys);
     const finals = deep.map((c) => ({ c, e: evaluateCreator(spec, claimsBy.get(c.id) ?? [], ctx) })).filter((x) => x.e.overall !== "FAIL")
-      .map(({ c, e }) => buildResult(scoutingId, c, e, claimsBy.get(c.id) ?? [], spec, s, false)).sort((a, b) => b.fit - a.fit).map((r, idx) => ({ ...r, rank: idx + 1 }));
+      .map(({ c, e }) => buildResult(scoutingId, c, e, claimsBy.get(c.id) ?? [], spec, s, false)).sort(byEvidenceThenFit).map((r, idx) => ({ ...r, rank: idx + 1 }));
     await progress(0.4);
     const top = finals.slice(0, LIMITS.explainTop);
     const explanations = await explainResults(top.map((r) => explainInput(r, deep.find((c) => c.id === r.creator_id)!, claimsBy.get(r.creator_id) ?? [], s)));
@@ -196,17 +192,41 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
 const round = (n: number) => Number(n.toFixed(4));
 
 /** Los campos confirmados por el usuario mandan sobre lo que el compilador haya deducido. */
-export function applyFieldsToSpec(spec: BriefSpec, s: Scouting): BriefSpec {
+export function applyFieldsToSpec(spec: BriefSpec, s: Scouting, geo?: GeoScope): BriefSpec {
   const f = s.fields;
   const mf = { ...spec.macro_filters };
+  delete mf.er_estimate;                       // el engagement es preferencia blanda, nunca filtro macro
+  delete mf["location.city"]; delete mf["location.country"];
   if (f.followers_min != null || f.followers_max != null) mf.followers = { between: [f.followers_min ?? 0, f.followers_max ?? 100_000_000] };
   mf["language.primary"] = { eq: ({ Spanish: "es", English: "en", Portuguese: "pt" } as const)[f.language] };
   const known = ["ES", "MX", "CO", "AR", "CL", "PE", "US", "BR"];
-  const countries = f.countries.filter((c) => known.includes(c));
+  const countries = (geo?.countries.length ? geo.countries : f.countries).filter((c) => known.includes(c));
   if (countries.length) mf["location.country"] = { any_of: countries };
+  // Ciudad: filtro duro pero lógico. Solo cuando el brief baja de país; incluye toda la zona (municipios, área metropolitana).
+  if (geo && (geo.level === "city" || geo.level === "region") && geo.cities.length) mf["location.city"] = { any_of: [...new Set(geo.cities.map(normCity))].filter(Boolean) };
+  mf["account.kind"] = { none_of: ["business", "media"] };
   mf["brand_safety.flags"] = { none_of: ["adult", "political_extreme", "hate", "violence"] };
   const wanted = f.creators_wanted ?? 15;
   return { ...spec, macro_filters: mf, budget: { max_candidates_deep: Math.min(300, Math.max(40, wanted * 10)), max_usd: Math.max(spec.budget.max_usd, 60) } };
+}
+
+/** Explica, con números, qué filtro dejó fuera a la mayoría del pool. */
+async function diagnoseFilters(spec: BriefSpec, platforms: string[], s: Scouting, geo: GeoScope): Promise<string> {
+  const mf = spec.macro_filters;
+  const q = async (where: string, params: unknown[] = []) => Number((await db().query(`SELECT count(*)::int AS n FROM creator_facets f JOIN creators c ON c.id = f.creator_id WHERE c.platform = ANY($1) ${where}`, [platforms, ...params])).rows[0].n);
+  const total = await q("");
+  const parts: string[] = [];
+  if (mf.followers?.between) {
+    const [lo, hi] = mf.followers.between;
+    const inRange = await q("AND f.followers BETWEEN $2 AND $3", [lo, hi]);
+    const { rows } = await db().query(`SELECT max(f.followers)::int AS mx FROM creator_facets f JOIN creators c ON c.id = f.creator_id WHERE c.platform = ANY($1)`, [platforms]);
+    parts.push(`${inRange} of ${total} have ${lo.toLocaleString("en-US")}–${hi.toLocaleString("en-US")} followers (largest found: ${Number(rows[0].mx ?? 0).toLocaleString("en-US")})`);
+  }
+  if (mf["location.country"]?.any_of) parts.push(`${await q("AND f.facets->'location.country' ?| $2::text[]", [mf["location.country"].any_of])} in ${(mf["location.country"].any_of as string[]).join("/")}`);
+  if (mf["location.city"]?.any_of) parts.push(`${await q("AND f.facets->'location.city' ?| $2::text[]", [mf["location.city"].any_of])} located in ${geo.label}`);
+  if (mf["content.category"]?.any_of) parts.push(`${await q("AND f.facets->'content.category' ?| $2::text[]", [mf["content.category"].any_of])} publish about ${(mf["content.category"].any_of as string[]).join("/")}`);
+  parts.push(`${await q("AND NOT COALESCE(f.facets->'account.kind' ?| ARRAY['business','media'], false)")} are not business or media accounts`);
+  return `Few matches: ${parts.join("; ")}. Consider widening the follower range or the location.`;
 }
 
 function describeFilter(key: string, f: Record<string, unknown>): string {
@@ -219,6 +239,12 @@ function describeFilter(key: string, f: Record<string, unknown>): string {
 
 function latest(claims: Claim[], key: string): Claim | undefined {
   return vigentes(claims.filter((c) => c.predicate_key === key && c.polarity === "affirms"), { now: new Date(), minConfidence: 0.5 }).sort(byPriority)[0];
+}
+
+/** Primero quien cumple los requisitos duros con evidencia (PASS), luego quien no se pudo verificar (UNKNOWN); dentro de cada grupo, por fit. */
+function byEvidenceThenFit(a: { verdict: string; fit: number }, b: { verdict: string; fit: number }): number {
+  const g = (v: string) => (v === "PASS" ? 0 : v === "UNKNOWN" ? 1 : 2);
+  return g(a.verdict) - g(b.verdict) || b.fit - a.fit;
 }
 
 function buildResult(scoutingId: string, c: Candidate, e: ReturnType<typeof evaluateCreator>, claims: Claim[], spec: BriefSpec, s: Scouting, preliminary: boolean): Omit<ScoutingResult, "handle" | "display_name" | "avatar_url" | "on_shortlist"> {
@@ -235,7 +261,7 @@ function buildResult(scoutingId: string, c: Candidate, e: ReturnType<typeof eval
   const fit = computeFit({
     verdict: e.overall, topicShare, audienceLocationPct, audienceAgePct: audienceInAgeRange(ages, s.fields.age_min, s.fields.age_max),
     followers: c.followers, er, minEngagementPct: s.fields.min_engagement_pct, brandSafetyFlags: flags,
-    estimatedRateUsd: estimateRateUsd(c.followers, c.platform), budgetPerCreatorUsd: budgetPerCreator,
+    estimatedRateUsd: estimateRateUsd(c.followers, c.platform, s.fields.countries[0] ?? null), budgetPerCreatorUsd: budgetPerCreator,
   });
   return {
     scouting_id: scoutingId, creator_id: c.id, rank: 0, fit: fit.fit, fit_parts: fit.parts, tier: tierOf(fit.fit), verdict: e.overall === "PASS" ? "PASS" : "UNKNOWN",

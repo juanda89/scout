@@ -68,10 +68,12 @@ ingest.command("fixtures [file]").description("Carga creadoras desde un JSON loc
 ingest.command("apify").description("Ingesta vía Apify (requiere APIFY_TOKEN)")
   .option("--hashtags <list>", "hashtags separados por coma")
   .option("--profiles <list>", "handles separados por coma")
+  .option("--queries <list>", "búsquedas de perfil por palabra clave separadas por coma")
   .option("--limit <n>", "máximo de items", "200")
-  .action(async (o: { hashtags?: string; profiles?: string; limit: string }) => {
-    const creators = await ingestFromApify({ hashtags: o.hashtags?.split(","), profiles: o.profiles?.split(","), limit: Number(o.limit), log: (m) => console.log("  " + m) });
+  .action(async (o: { hashtags?: string; profiles?: string; queries?: string; limit: string }) => {
+    const { creators, costUsd } = await ingestFromApify({ hashtags: o.hashtags?.split(","), profiles: o.profiles?.split(","), queries: o.queries?.split(","), limit: Number(o.limit), log: (m) => console.log("  " + m) });
     const r = await storeCreators(creators);
+    console.log(`  costo Apify: ${costUsd.toFixed(3)} USD`);
     for (const c of creators) console.log(`  @${c.handle.padEnd(22)} ${String(c.followers ?? "?").padStart(9)} seg.  ${c.posts.length} posts  bio: ${(c.bio ?? "").replace(/\n/g, " ").slice(0, 70)}`);
     console.log(`creadoras: ${r.creators}, posts: ${r.posts}`);
   });

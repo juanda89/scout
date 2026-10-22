@@ -8,7 +8,7 @@ import { fmtK, fmtPct, platformLabel, tierColor } from "@/lib/format";
 
 const PAGE = 10;
 
-export function Results({ id, results }: { id: string; results: ScoutingResult[] }) {
+export function Results({ id, results, diagnostic }: { id: string; results: ScoutingResult[]; diagnostic?: string | null }) {
   const [sel, setSel] = useState<string | null>(results[0]?.creator_id ?? null);
   const [plat, setPlat] = useState("all");
   const [sort, setSort] = useState<"fit" | "followers" | "engagement">("fit");
@@ -28,6 +28,14 @@ export function Results({ id, results }: { id: string; results: ScoutingResult[]
   const toggle = (creatorId: string) => { setSaved((s) => ({ ...s, [creatorId]: !s[creatorId] })); start(async () => { const on = await toggleShortlistAction(id, creatorId); setSaved((s) => ({ ...s, [creatorId]: on })); }); };
   const profileUrl = (r: ScoutingResult) => r.platform === "tiktok" ? `https://www.tiktok.com/@${r.handle}` : r.platform === "youtube" ? `https://www.youtube.com/@${r.handle}` : `https://www.instagram.com/${r.handle}/`;
 
+  if (!results.length) {
+    return (
+      <section className="card" style={{ padding: "32px 36px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em" }}>No creators matched this brief</h2>
+        <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.6, color: "var(--ink-3)", maxWidth: 720 }}>{diagnostic ?? "The search found profiles, but none passed the brief’s hard filters. Try widening the follower range or the location, and launch it again with “Duplicate brief”."}</p>
+      </section>
+    );
+  }
   return (
     <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", gap: 20 }}>
       <section aria-label="Creators" className="card" style={{ flex: "999 1 640px", minWidth: 0, overflow: "hidden" }}>

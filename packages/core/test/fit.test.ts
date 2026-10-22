@@ -31,7 +31,9 @@ describe("computeFit", () => {
   it("benchmark y tarifa por tamaño", () => {
     expect(erBenchmark(5_000)).toBe(0.05);
     expect(erBenchmark(1_000_000)).toBe(0.015);
-    expect(estimateRateUsd(50_000, "instagram")).toBe(500);
+    expect(estimateRateUsd(50_000, "instagram")).toBe(250);          // mercado desconocido: 5 USD por mil
+    expect(estimateRateUsd(50_000, "instagram", "US")).toBe(500);    // 10 USD por mil
+    expect(estimateRateUsd(300_000, "instagram", "CO")).toBe(900);   // 3 USD por mil
     expect(estimateRateUsd(null, "instagram")).toBeNull();
   });
 });

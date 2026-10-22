@@ -47,12 +47,35 @@ function tighten(node: unknown): unknown {
   return o;
 }
 
+/** Modelos de respaldo por si el principal devuelve 5xx o 429 (OpenRouter los prueba en orden). */
+const FALLBACKS: Record<string, string[]> = {
+  "google/gemini-3.8-flash": ["google/gemini-3.7-flash", "google/gemini-2.5-flash"],
+  "google/gemini-3.5-flash-lite": ["google/gemini-2.5-flash-lite", "google/gemini-2.5-flash"],
+};
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 class OpenRouterClient implements LlmClient {
   readonly provider = "openrouter" as const;
   constructor(readonly model: string) {}
   async complete<T>(req: CompletionRequest<T>): Promise<Completion<T>> {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try { return await this.once(req); }
+      catch (e) {
+        lastErr = e;
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!/OpenRouter (5\d\d|429)|UNAVAILABLE|high demand|overloaded|rate limit/i.test(msg) || attempt === 3) throw e;
+        await sleep(1500 * 2 ** attempt);
+      }
+    }
+    throw lastErr;
+  }
+  private async once<T>(req: CompletionRequest<T>): Promise<Completion<T>> {
+    const extra = (process.env.LLM_FALLBACK_MODELS ?? "").split(",").map((m) => m.trim()).filter(Boolean);
+    const models = [this.model, ...(FALLBACKS[this.model] ?? []), ...extra];
     const body = {
       model: this.model,
+      models,
       messages: [{ role: "system", content: req.system }, { role: "user", content: req.user }],
       response_format: { type: "json_schema", json_schema: { name: req.schemaName, strict: true, schema: strictJsonSchema(req.schema) } },
       provider: { require_parameters: true },
@@ -72,7 +95,8 @@ class OpenRouterClient implements LlmClient {
     let parsed: unknown;
     try { parsed = JSON.parse(stripFences(content)); } catch { throw new Error(`OpenRouter (${this.model}) no devolvió JSON válido: ${content.slice(0, 300)}`); }
     const data = req.schema.parse(parsed);
-    return { data, inputTokens: j.usage?.prompt_tokens ?? 0, outputTokens: j.usage?.completion_tokens ?? 0, costUsd: j.usage?.cost ?? 0, model: this.model };
+    const served = (j as { model?: string }).model ?? this.model;
+    return { data, inputTokens: j.usage?.prompt_tokens ?? 0, outputTokens: j.usage?.completion_tokens ?? 0, costUsd: j.usage?.cost ?? 0, model: served };
   }
 }
 
