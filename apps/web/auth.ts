@@ -24,7 +24,7 @@ export function isAllowed(email?: string | null): boolean {
 }
 
 const providers: NextAuthConfig["providers"] = [];
-if (hasGoogle) providers.push(Google({ allowDangerousEmailAccountLinking: true }));
+if (hasGoogle) providers.push(Google({ clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET, allowDangerousEmailAccountLinking: true }));
 if (devEnabled) {
   providers.push(Credentials({
     id: "dev",
