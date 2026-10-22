@@ -66,6 +66,12 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
   const handleOf = new Map<string, string>();
   const geoTerms = [...new Set([...ctx.geo.search_terms, ...ctx.geo.cities.slice(0, 8)].map(normCity).filter(Boolean))];
   const hasGeoTerm = (tag: string) => geoTerms.some((t) => t.length >= 3 && tag.includes(t.replace(/\s+/g, "")));
+  const apify = { down: null as string | null };   // si Apify deja de responder (límite mensual, token), no se insiste en esa corrida
+  const apifyFailed = async (what: string, e: unknown) => {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/limit exceeded|hard limit|quota|unauthorized|401|402|403/i.test(msg)) apify.down = msg;
+    await ctx.ev(`${what} failed: ${msg.slice(0, 160)}`, "warn");
+  };
   const tol = FOLLOWER_TOLERANCE;
   const followersMin = ctx.fields.followers_min ? Math.floor(ctx.fields.followers_min * (1 - tol)) : null;
   const followersMax = ctx.fields.followers_max ? Math.ceil(ctx.fields.followers_max * (1 + tol)) : null;
@@ -142,9 +148,15 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
       cost += reVerify.costUsd;
       let run: StrategyRun | null = null;
       if (fresh.length) {
-        const ing = isLive("apify") ? await ingestFromApify({ profiles: fresh.map((h) => h.handle).slice(0, 50), maxPostsPerProfile: 12, log: ctx.log }) : { creators: [], costUsd: 0, runs: [] };
+        let ing = { creators: [] as IngestedCreator[], costUsd: 0 };
+        if (isLive("apify") && !apify.down) {
+          try { ing = await ingestFromApify({ profiles: fresh.map((h) => h.handle).slice(0, 50), maxPostsPerProfile: 12, log: ctx.log }); }
+          catch (e) { await apifyFailed("Profile details (Apify)", e); }
+        }
+        // Sin bio ni posts no hay cómo clasificar: los perfiles quedan en el índice con lo que dio CreatorDB y se completan en la próxima corrida.
         const creators = ing.creators.length ? ing.creators : fresh.map((h) => ({ platform: "instagram" as const, handle: h.handle, display_name: h.displayName, followers: h.followers, avatar_url: h.avatarUrl, posts: [], discovered_via: name }));
         run = await absorb(name, { filters: input, page: page + 1 }, creators, r.costUsd + ing.costUsd, labelText);
+        if (apify.down) break;
       } else {
         cost += r.costUsd;
         await ctx.ev(`${labelText}: ${r.hits.length} profiles already in the index, ${reVerify.added} newly verified · ${tally()}`);
@@ -246,22 +258,24 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
   if (!done() && geoTags.length) await probe("creatordb:geo-hashtags", "CreatorDB index (local hashtags)", { ...base, hashtags: geoTags }, 2);
 
   /* 4 · Lo que el índice no tiene: Apify (búsqueda de perfiles por palabra clave y posts de los hashtags aprendidos) */
-  if (!done() && isLive("apify")) {
+  if (!done() && isLive("apify") && !apify.down) {
     const queries = buildQueries(ctx.fields.topics, geoTerms);
     if (queries.length) {
       try {
         const ing = await ingestFromApify({ queries, limit: 20, maxPostsPerProfile: 12, log: ctx.log });
         await absorb("profile_search", { queries }, ing.creators, ing.costUsd, "Instagram profile search");
-      } catch (e) { await ctx.ev(`Profile search failed: ${e instanceof Error ? e.message : e}`, "warn"); }
+      } catch (e) { await apifyFailed("Profile search", e); }
     }
   }
-  if (!done() && isLive("apify") && usedTags.size) {
+  if (!done() && isLive("apify") && !apify.down && usedTags.size) {
     const tags = [...usedTags].slice(0, 6);
     try {
       const ing = await ingestFromApify({ hashtags: tags, limit: 40, maxPostsPerProfile: 12, log: ctx.log });
       await absorb("hashtag-posts", { tags }, ing.creators, ing.costUsd, `Who posts under ${tags.slice(0, 3).map((t) => "#" + t).join(" ")}`);
-    } catch (e) { await ctx.ev(`Hashtag search failed: ${e instanceof Error ? e.message : e}`, "warn"); }
+    } catch (e) { await apifyFailed("Hashtag search", e); }
   }
+
+  if (apify.down) await ctx.ev(`Apify is unavailable for this run (${apify.down.slice(0, 80)}); profiles found by CreatorDB stay in the index without bio or posts until the next run`, "warn");
 
   /* 5 · Las verificadas que el índice de CreatorDB no tenía se le envían (gratis): el próximo brief las encontrará por "similares" y hashtags. */
   if (verified.size && isLive("creatordb")) {

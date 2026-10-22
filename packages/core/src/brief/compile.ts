@@ -134,7 +134,7 @@ export async function compileBrief(text: string, existing: Predicate[], title?: 
   let feedback = "";
   let cost = 0;
   for (let attempt = 1; attempt <= 2; attempt++) {
-    const res = await client.complete({ system: SYSTEM, user: user + feedback, schema: CompileOutput, schemaName: "brief_spec", maxTokens: 16000 });
+    const res = await client.complete({ system: SYSTEM, user: user + feedback, schema: CompileOutput, schemaName: "brief_spec", maxTokens: 6000 });
     cost += res.costUsd;
     try {
       const spec = BriefSpecSchema.parse(toSpec(res.data));

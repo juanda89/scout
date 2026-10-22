@@ -27,7 +27,7 @@ export async function explainResults(items: ExplainInput[]): Promise<Explanation
   for (let i = 0; i < items.length; i += 8) {
     const batch = items.slice(i, i + 8);
     try {
-      const res = await client.complete({ system: SYSTEM, user: JSON.stringify(batch.map(compact)), schema: Out, schemaName: "explanations", maxTokens: 8000 });
+      const res = await client.complete({ system: SYSTEM, user: JSON.stringify(batch.map(compact)), schema: Out, schemaName: "explanations", maxTokens: 4000 });
       const byId = new Map(res.data.items.map((x) => [x.creator_id, x]));
       for (const it of batch) out.push(byId.get(it.creator_id) ?? fallback(it));
     } catch (e) {
