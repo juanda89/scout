@@ -79,7 +79,9 @@ especificación determinista. Reglas:
    Dos predicados distintos pueden derivar el mismo nombre (una mención de edad y un anuncio de nacimiento); la regla los suma como evidencia.
 4. Requisitos duros: min_evidence 2 por defecto si el error es costoso; blandos con weight que sume 1.
 5. Predicados nuevos: key en snake.case con punto, enum cerrado cuando sea posible. provider "jev" si es clasificable con una pregunta cerrada:
-   jev_question.type "choice" con choices cuyas label son EXACTAMENTE los enum_values del predicado (más una etiqueta "ninguna" en none_labels si procede);
+   jev_question.type "choice" con choices cuyas label son EXACTAMENTE los enum_values del predicado, siempre con la etiqueta "ninguna" en none_labels,
+   y con instructions que digan explícitamente cuándo responder "ninguna" (ej. "Si la publicación no trata de comida, responde ninguna"): un partido llamado
+   "Clásico Paisa" no es comida típica;
    "noul" para booleanos (sin choices); "score" con levels ordenados. provider "claude" si hay que extraer un valor libre o estructurado (objeto con required_fields, número, fecha).
    En value_schema rellena solo lo que aplica: enum_values para enum, min/max para number, required_fields para object.
 6. Lo que no esté claro en el brief va en open_questions, no se inventa.

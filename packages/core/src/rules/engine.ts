@@ -112,6 +112,16 @@ export function evaluateRequirement(req: Requirement, allClaims: Claim[], ctx: E
   }
   const n = independentEvidenceCount(satisfying.map((c) => c.claim));
   if (n < req.min_evidence) {
+    // Evidencia de apoyo: con al menos una evidencia fuerte, los claims hasta 0,1 por debajo del umbral
+    // completan el conteo (un 0,83 confirma lo que un 0,99 ya dijo; sin el fuerte, siguen sin contar).
+    const supportFloor = Math.max(0.7, minConfidence - 0.1);
+    const support = vigentes(scoped, { now: ctx.now, minConfidence: supportFloor, maxEvidenceAgeDays: req.max_evidence_age_days }).sort(byPriority).filter((c) => c.polarity === "affirms");
+    const supPool = cardinality === "one" && !req.rule.derived ? candidateValues(req, support, ctx).slice(0, 1) : candidateValues(req, support, ctx);
+    const supSat = supPool.filter((c) => testRule(req.rule, c.value));
+    const nS = independentEvidenceCount(supSat.map((c) => c.claim));
+    if (n >= 1 && nS >= req.min_evidence) {
+      return { ...base, verdict: "PASS", reason: `${nS} evidencia(s), ${n} fuerte(s) y ${nS - n} de apoyo`, claim_ids: supSat.map((c) => c.claim.id), values: supSat.map((c) => c.value) };
+    }
     return { ...base, verdict: "UNKNOWN", reason: `evidencia insuficiente (${n}/${req.min_evidence})`, claim_ids: satisfying.map((c) => c.claim.id), values: satisfying.map((c) => c.value) };
   }
   return { ...base, verdict: "PASS", reason: `${n} evidencia(s) independiente(s)`, claim_ids: satisfying.map((c) => c.claim.id), values: satisfying.map((c) => c.value) };

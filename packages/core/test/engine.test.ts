@@ -59,6 +59,15 @@ describe("evaluateRequirement con derivaciones y evidencia", () => {
     const r2 = evaluateRequirement(req({ predicate: "wearable.brand", rule: { op: "eq", value: "garmin" } }), [low, human], ctx);
     expect(r2.verdict).toBe("PASS");
   });
+  it("una evidencia fuerte más una de apoyo (hasta 0,1 bajo el umbral) completan min_evidence 2", () => {
+    const r2 = req({ predicate: "content.category", rule: { op: "any_of", value: ["running"] }, min_evidence: 2 });
+    const strong = claim({ predicate_key: "content.category", value: "running", confidence: 0.99, evidence_content_id: "p1" });
+    const support = claim({ predicate_key: "content.category", value: "running", confidence: 0.8, evidence_content_id: "p2" });
+    const weak = claim({ predicate_key: "content.category", value: "running", confidence: 0.6, evidence_content_id: "p3" });
+    expect(evaluateRequirement(r2, [strong, support], ctx).verdict).toBe("PASS");
+    expect(evaluateRequirement(r2, [strong, weak], ctx).verdict).toBe("UNKNOWN");      // 0,6 es demasiado bajo para apoyar
+    expect(evaluateRequirement(r2, [support, support], ctx).verdict).toBe("UNKNOWN");  // sin ninguna fuerte, no cuentan
+  });
   it("cardinalidad one: gana el claim humano sobre el automático más reciente", () => {
     const auto = claim({ predicate_key: "wearable.brand", value: "apple", observed_at: new Date("2026-10-01T00:00:00Z") });
     const human = claim({ predicate_key: "wearable.brand", value: "garmin", status: "human_confirmed", evidence_modality: "human", observed_at: new Date("2026-01-01T00:00:00Z") });
