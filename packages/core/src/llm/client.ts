@@ -15,6 +15,10 @@ export interface CompletionRequest<T> {
   schemaName: string;
   maxTokens?: number;
   temperature?: number;
+  /** Audio adjunto (base64) para modelos multimodales: la pista de un reel, por ejemplo. Solo OpenRouter/Gemini. */
+  audio?: Array<{ data: string; format: "mp3" | "mp4" | "wav" | "m4a" | "aac" }>;
+  /** Imágenes adjuntas (URL http o data URI). Solo OpenRouter/Gemini. */
+  images?: string[];
 }
 
 export interface Completion<T> { data: T; inputTokens: number; outputTokens: number; costUsd: number; model: string }
@@ -76,7 +80,7 @@ class OpenRouterClient implements LlmClient {
     const body = {
       model: this.model,
       models,
-      messages: [{ role: "system", content: req.system }, { role: "user", content: req.user }],
+      messages: [{ role: "system", content: req.system }, { role: "user", content: userContent(req) }],
       response_format: { type: "json_schema", json_schema: { name: req.schemaName, strict: true, schema: strictJsonSchema(req.schema) } },
       provider: { require_parameters: true },
       usage: { include: true },
@@ -118,6 +122,16 @@ class AnthropicClient implements LlmClient {
     const costUsd = (res.usage.input_tokens / 1e6) * 4 + (res.usage.output_tokens / 1e6) * 20; // claude-opus-5-5
     return { data, inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens, costUsd, model: this.model };
   }
+}
+
+/** Texto solo, o texto + audio + imágenes en el formato de contenido multimodal de OpenRouter. */
+function userContent<T>(req: CompletionRequest<T>): string | Array<Record<string, unknown>> {
+  if (!req.audio?.length && !req.images?.length) return req.user;
+  return [
+    { type: "text", text: req.user },
+    ...(req.audio ?? []).map((a) => ({ type: "input_audio", input_audio: { data: a.data, format: a.format } })),
+    ...(req.images ?? []).map((u) => ({ type: "image_url", image_url: { url: u } })),
+  ];
 }
 
 function stripFences(s: string): string {

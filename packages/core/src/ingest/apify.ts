@@ -150,3 +150,17 @@ function num(v: unknown): number | null { return typeof v === "number" && Number
 export function extractTags(text: string): string[] { return [...new Set((text.match(/#[\p{L}\p{N}_]+/gu) ?? []).map((t) => t.slice(1).toLowerCase()))]; }
 export function extractMentions(text: string): string[] { return [...new Set((text.match(/@[\w.]+/g) ?? []).map((t) => t.slice(1).toLowerCase().replace(/\.$/, "")))]; }
 function str(v: unknown): string | null { return typeof v === "string" && v.length ? v : null; }
+
+/**
+ * Posts recientes de uno o varios perfiles en modo "posts" (hasta `limit` por perfil; ~0,002 USD por post, más caro que
+ * el detalle de perfil pero trae video, audio, comentarios y las colaboraciones: en el feed de un restaurante, el post en
+ * colaboración aparece con la creadora como dueña). Devuelve un IngestedCreator por dueño de post.
+ */
+export async function fetchProfilePosts(handles: string[], limit = 12, log: (s: string) => void = () => {}): Promise<ApifyIngestResult> {
+  if (!isLive("apify")) throw new Error("APIFY_TOKEN no configurado");
+  const client = new ApifyClient({ token: config.apifyToken });
+  const hs = [...new Set(handles.map((h) => h.replace(/^@/, "").toLowerCase()))].filter(Boolean);
+  if (!hs.length) return { creators: [], costUsd: 0, runs: [] };
+  const r = await runActor(client, { directUrls: hs.map((h) => `https://www.instagram.com/${h}/`), resultsType: "posts", resultsLimit: limit }, log, `posts(${hs.length})`);
+  return { creators: normalizeApifyItems(r.items, `apify:${ACTOR}:posts`, limit), costUsd: r.costUsd, runs: [r.runId] };
+}

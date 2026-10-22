@@ -68,6 +68,8 @@ export interface ScoutingMetrics {
   profiles_analyzed?: number;
   /** Candidatas verificadas en el tema (requisitos duros con evidencia) durante el descubrimiento. */
   verified?: number;
+  /** Perfiles que pasaron filtros pero quedaron sin evidencia del tema: no se listan como recomendación. */
+  unverified?: number;
 }
 
 /** Las cinco etapas del diseño. `mode` es el estado del Orb. */

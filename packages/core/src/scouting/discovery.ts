@@ -2,7 +2,7 @@ import { z } from "zod/v4";
 import { db } from "../db.js";
 import { config, isLive } from "../config.js";
 import { llm } from "../llm/client.js";
-import { ingestFromApify } from "../ingest/apify.js";
+import { fetchProfilePosts, ingestFromApify } from "../ingest/apify.js";
 import { storeCreators } from "../ingest/store.js";
 import type { IngestedCreator } from "../ingest/types.js";
 import { listNiches, searchCreators, submitCreators, type CreatorSearchInput } from "../enrich/creatordb.js";
@@ -13,6 +13,7 @@ import { refreshFacets } from "../funnel/facets.js";
 import { macroCandidates } from "../funnel/macro-query.js";
 import { requiredPredicates } from "../funnel/run.js";
 import { evaluateCreator } from "../rules/engine.js";
+import { deepBudgetUsd, deepEnabled, deepVerify } from "../extract/deep.js";
 import type { BriefSpec } from "../schema/brief.js";
 import type { Predicate } from "../schema/predicate.js";
 import { A2_TO_A3, normCity, type GeoScope } from "./geo.js";
@@ -93,11 +94,32 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
       checked.add(id);
       try { c += (await extractPredicates(id, handleOf.get(id) ?? "", hardPreds)).costUsd; }
       catch (e) { ctx.log(`verificación fallida @${handleOf.get(id)}: ${e instanceof Error ? e.message.slice(0, 120) : e}`); continue; }
-      const claims = (await listClaimsForCreators([id], hardPreds.map((p) => p.key))).get(id) ?? [];
-      const e = evaluateCreator(hardSpec, claims, engineCtx);
+      let claims = (await listClaimsForCreators([id], hardPreds.map((p) => p.key))).get(id) ?? [];
+      let e = evaluateCreator(hardSpec, claims, engineCtx);
+      if (e.overall === "UNKNOWN" && await deepEligible(id, claims.length > 0)) {
+        // Bio y captions no bastaron pero hay señales: escuchar un reel y leer los comentarios antes de descartar.
+        const d = await deepVerify(id, handleOf.get(id) ?? "", hardPreds, { geo: ctx.geo, log: ctx.log });
+        deepSpent += d.costUsd; c += d.costUsd;
+        if (d.ran) {
+          claims = (await listClaimsForCreators([id], hardPreds.map((p) => p.key))).get(id) ?? [];
+          e = evaluateCreator(hardSpec, claims, engineCtx);
+          await refreshFacets(id);
+          await ctx.ev(`Listened to a reel from @${handleOf.get(id)}: ${e.overall === "PASS" ? "verified on the brief" : "still no evidence"}${d.city ? ` · filmed in ${d.city}` : ""} (${d.costUsd.toFixed(3)} USD)`, e.overall === "PASS" ? "find" : "info");
+        }
+      }
       if (e.overall === "PASS") { verified.add(id); added++; }
     }
     return { added, costUsd: c };
+  };
+  /** ¿Vale la pena abrir un reel? Hay presupuesto y el perfil publica de la categoría principal, tiene algún claim del tema, o llegó por el grafo de lugares. */
+  let deepSpent = 0;
+  const deepEligible = async (id: string, hasTopicClaims: boolean): Promise<boolean> => {
+    if (!deepEnabled() || deepSpent >= deepBudgetUsd()) return false;
+    if (hasTopicClaims) return true;
+    const { rows: [r] } = await db().query(`SELECT f.facets->'content.category' AS cats, c.discovered_via AS via FROM creators c LEFT JOIN creator_facets f ON f.creator_id = c.id WHERE c.id = $1`, [id]);
+    const cats = (r?.cats as string[] | null) ?? [];
+    const prim = ((ctx.spec.macro_filters["content.category"]?.any_of as string[] | undefined) ?? []).slice(0, 1);
+    return cats.some((x) => prim.includes(x)) || /^(places|related|tagged)/.test(String(r?.via ?? ""));
   };
 
   /** Guarda, clasifica (barato primero), busca la zona en bio y posts, verifica el tema y mide el rendimiento. */
@@ -173,6 +195,37 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
     return gained;
   };
 
+  const exploredPlaces = new Set<string>();
+  const placesRound = async (round: number, seedIds: string[]) => {
+    // Lugares = cuentas mencionadas por las semillas que no son creadoras del índice (o son negocios). Peso: semillas distintas y menciones.
+    const { rows: places } = await db().query(
+      `SELECT lower(m) AS handle, count(DISTINCT ci.creator_id)::int AS seeds, count(*)::int AS mentions
+         FROM content_items ci JOIN creators c ON c.id = ci.creator_id, unnest(ci.mentions) AS m
+        WHERE ci.creator_id = ANY($1) AND lower(m) <> lower(c.handle)
+          AND NOT EXISTS (SELECT 1 FROM creators k JOIN creator_facets f ON f.creator_id = k.id WHERE lower(k.handle) = lower(m) AND NOT (f.facets->'account.kind' ? 'business'))
+        GROUP BY lower(m) ORDER BY seeds DESC, mentions DESC LIMIT 60`, [seedIds]);
+    const picked = places.map((r) => ({ h: String(r.handle), w: Number(r.seeds) * 3 + Number(r.mentions) })).filter((x) => !exploredPlaces.has(x.h) && !usedSeeds.has(x.h)).slice(0, 8);
+    if (!picked.length) return;
+    picked.forEach((x) => exploredPlaces.add(x.h));
+    let feed;
+    try { feed = await fetchProfilePosts(picked.map((x) => x.h), 12, ctx.log); }
+    catch (e) { await apifyFailed("Places feed", e); return; }
+    const placeSet = new Set(picked.map((x) => x.h));
+    const score = new Map<string, number>();
+    for (const owner of feed.creators) {
+      if (!placeSet.has(owner.handle)) score.set(owner.handle, (score.get(owner.handle) ?? 0) + 3);   // post en colaboración: la creadora es la dueña
+      for (const post of owner.posts) for (const m of post.mentions ?? []) if (!placeSet.has(m)) score.set(m, (score.get(m) ?? 0) + 1);
+    }
+    const { rows: known } = await db().query(`SELECT lower(handle) AS h FROM creators WHERE platform = 'instagram' AND lower(handle) = ANY($1)`, [[...score.keys()]]);
+    const knownSet = new Set(known.map((k) => String(k.h)));
+    const handles = [...score.entries()].filter(([h]) => !knownSet.has(h)).sort((a, b) => b[1] - a[1]).map(([h]) => h).slice(0, 30);
+    if (!handles.length) { await ctx.ev(`Places reviewed by the verified creators (${picked.slice(0, 3).map((x) => "@" + x.h).join(", ")}…): no new accounts in their feeds`, "info"); return; }
+    try {
+      const ing = await ingestFromApify({ profiles: handles, maxPostsPerProfile: 12, log: ctx.log });
+      await absorb(`places:${round}`, { places: picked.map((x) => x.h), handles }, ing.creators, feed.costUsd, `Accounts the reviewed places collaborate with or tag (${picked.slice(0, 3).map((x) => "@" + x.h).join(", ")}…)`);
+    } catch (e) { await apifyFailed("Places graph", e); }
+  };
+
   /* 0 · Lo que ya está en el índice: zona sin costo y verificación de quien ya pasa filtros */
   if (ctx.geo.cities.length) {
     const { rows } = await db().query(
@@ -214,6 +267,24 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
     const v = await verify(existing);
     cost += v.costUsd;
     if (existing.length) await ctx.ev(`${existing.length} profiles already in the index pass the filters; ${verified.size} ${canVerify ? "verified on the brief" : "matching"} (${v.costUsd.toFixed(2)} USD)`);
+  }
+
+  /* 0b · Rescate por ciudad: perfiles que pasan todo menos la ciudad (desconocida) y publican del tema: un reel y sus comentarios suelen situarlos. */
+  if (ctx.geo.cities.length && ctx.spec.macro_filters["location.city"] && deepEnabled()) {
+    const noCity = { ...ctx.spec.macro_filters }; delete noCity["location.city"];
+    const passingNow = new Set(await passingIds());
+    const prim = ((ctx.spec.macro_filters["content.category"]?.any_of as string[] | undefined) ?? []).slice(0, 1);
+    const cands = (await macroCandidates(noCity, { platforms: ctx.platforms }))
+      .filter((c) => !passingNow.has(c.id) && !(c.facets["location.city"] as string[] | undefined)?.length && ((c.facets["content.category"] as string[] | undefined) ?? []).some((x) => prim.includes(x)))
+      .slice(0, 15);
+    let rescued = 0;
+    for (const c of cands) {
+      if (deepSpent >= deepBudgetUsd()) break;
+      const d = await deepVerify(c.id, c.handle, hardPreds, { geo: ctx.geo, log: ctx.log });
+      deepSpent += d.costUsd; cost += d.costUsd;
+      if (d.city) { await refreshFacets(c.id); const now = new Set(await passingIds()); if (now.has(c.id)) { rescued++; const v = await verify([c.id]); cost += v.costUsd; await ctx.ev(`@${c.handle} placed in ${d.city} by a reel and its comments${v.added ? " and verified on the brief" : ""}`, v.added ? "find" : "info"); } }
+    }
+    if (cands.length) ctx.log(`rescate por ciudad: ${cands.length} candidatas, ${rescued} situadas en la zona`);
   }
 
   const base: CreatorSearchInput = { countriesAlpha3: ctx.geo.countries.map((c) => A2_TO_A3[c] ?? c), followersMin, followersMax, language: LANG3[ctx.fields.language] ?? null, activeWithinDays: 90 };
@@ -272,6 +343,10 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
       .map(({ t }) => t).slice(0, 25);
     tags.forEach((t) => usedTags.add(t));
     if (tags.length) await probe(`learned-hashtags:${round}`, `Hashtags the verified creators really use (${tags.slice(0, 3).map((t) => "#" + t).join(" ")}…)`, { ...base, hashtags: tags }, 2);
+    if (done()) break;
+    // d) grafo de lugares: creadora verificada -> lugar que reseña -> a quién etiqueta o con quién colabora ese lugar -> nueva creadora.
+    //    Se recorre por peso (cuántas verificadas apuntan al lugar), se verifica cada perfil antes de contarlo, y se sigue solo si rinde.
+    if (isLive("apify") && !apify.down) await placesRound(round, seedIds);
     } catch (e) { await ctx.ev(`Snowball round ${round} failed: ${e instanceof Error ? e.message : e}`, "warn"); }
     if (verified.size === beforeRound) break;   // la ronda no aportó: no insistir
   }
@@ -319,6 +394,7 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
     }
   }
 
+  if (deepSpent > 0) ctx.log(`verificación profunda: ${deepSpent.toFixed(2)} USD`);
   if (apify.down) await ctx.ev(`Apify is unavailable for this run (${apify.down.slice(0, 80)}); profiles found by CreatorDB stay in the index without bio or posts until the next run`, "warn");
 
   /* 5 · Las verificadas que el índice de CreatorDB no tenía se le envían (gratis): el próximo brief las encontrará por "similares" y hashtags. */

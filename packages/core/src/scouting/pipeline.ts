@@ -21,6 +21,7 @@ import { computeFit } from "./fit.js";
 import { audienceInAgeRange, audienceInCountries, expandLocation, normCity, type GeoScope } from "./geo.js";
 import { FOLLOWER_TOLERANCE, runDiscovery } from "./discovery.js";
 import { ensureMediaFor, mediaEnabled } from "../media/s3.js";
+import { deepBudgetUsd, deepEnabled, deepVerify } from "../extract/deep.js";
 import { explainResults, type ExplainInput } from "./explain.js";
 import { STAGES, tierOf, type Scouting, type ScoutingResult } from "./types.js";
 
@@ -126,11 +127,31 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
     const ctx = { now: new Date(), predicates: pmap, defaultMinConfidence: config.defaultMinConfidence, jevMinConfidence: config.jevMinConfidence };
     const keys = [...new Set([...needed.map((p) => p.key), "content.category", "brand_safety.flags", "location.city", "audience.locations", "audience.ages"])];
     let claimsBy = await listClaimsForCreators(deep.map((c) => c.id), keys);
+    // Quien quedó sin evidencia tras bio y captions pero publica del tema: se escucha un reel y se leen comentarios (presupuesto aparte).
+    if (spec.requirements.some((r) => r.hard) && deepEnabled()) {
+      const hardPreds = needed.filter((p) => p.tier === "micro" && ["jev", "claude"].includes(p.extraction_spec.provider));
+      const prim = ((spec.macro_filters["content.category"]?.any_of as string[] | undefined) ?? []).slice(0, 1);
+      let spent = 0, opened = 0, gained = 0;
+      for (const c of deep) {
+        if (spent >= deepBudgetUsd()) break;
+        const e0 = evaluateCreator(spec, claimsBy.get(c.id) ?? [], ctx);
+        if (e0.overall !== "UNKNOWN") continue;
+        const topical = ((c.facets["content.category"] as string[] | undefined) ?? []).some((x) => prim.includes(x)) || (claimsBy.get(c.id) ?? []).some((k) => hardPreds.some((p) => p.key === k.predicate_key));
+        const { rows: [dj] } = await db().query(`SELECT 1 FROM extraction_jobs WHERE creator_id = $1 AND provider = 'deep_reel' AND status = 'done' LIMIT 1`, [c.id]);
+        if (!topical || dj) continue;
+        const d = await deepVerify(c.id, c.handle, hardPreds, { geo, log });
+        spent += d.costUsd; cost += d.costUsd; if (d.ran) opened++;
+        if (d.ran) { claimsBy = await listClaimsForCreators(deep.map((x) => x.id), keys); const e1 = evaluateCreator(spec, claimsBy.get(c.id) ?? [], ctx); if (e1.overall === "PASS") { gained++; await ev(3, `Listened to a reel from @${c.handle}: verified on the brief${d.city ? ` · filmed in ${d.city}` : ""}`, "find"); } }
+      }
+      if (opened) await ev(3, `Opened reels of ${opened} profiles with weak text evidence; ${gained} verified (${spent.toFixed(2)} USD)`);
+      await mergeMetrics(scoutingId, { cost_usd: round(cost) });
+    }
     const prelim = deep.map((c) => ({ c, e: evaluateCreator(spec, claimsBy.get(c.id) ?? [], ctx) })).filter((x) => x.e.overall !== "FAIL");
     const dropped = deep.length - prelim.length;
     if (dropped) await ev(3, `Dropped ${dropped} profiles whose content contradicts the brief`, "drop");
     const prelimAll = prelim.map(({ c, e }) => buildResult(scoutingId, c, e, claimsBy.get(c.id) ?? [], spec, s, true)).sort(byEvidenceThenFit);
-    const prelimRows = prelimAll.slice(0, 10).map((r, idx) => ({ ...r, rank: idx + 1 }));
+    const prelimVerified = prelimAll.filter((r) => r.verdict === "PASS");
+    const prelimRows = (prelimVerified.length ? prelimVerified : prelimAll).slice(0, 10).map((r, idx) => ({ ...r, rank: idx + 1 }));
     await upsertResults(scoutingId, prelimRows);
     if (mediaEnabled()) await ensureMediaFor(prelimRows.map((r) => r.creator_id), { content: 0 });   // fotos de perfil para "Early finds"
     for (const r of prelimRows.slice(0, 3)) await ev(3, `@${(deep.find((c) => c.id === r.creator_id) ?? { handle: "?" }).handle} added to strong candidates (~${r.fit})`, "find");
@@ -167,8 +188,12 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
     /* ───────── 05 · Scoring fit ───────── */
     await setStage(scoutingId, 5, "running");
     claimsBy = await listClaimsForCreators(deep.map((c) => c.id), keys);
-    const finals = deep.map((c) => ({ c, e: evaluateCreator(spec, claimsBy.get(c.id) ?? [], ctx) })).filter((x) => x.e.overall !== "FAIL")
-      .map(({ c, e }) => buildResult(scoutingId, c, e, claimsBy.get(c.id) ?? [], spec, s, false)).sort(byEvidenceThenFit).map((r, idx) => ({ ...r, rank: idx + 1 }));
+    const hasHard = spec.requirements.some((r) => r.hard);
+    const scored = deep.map((c) => ({ c, e: evaluateCreator(spec, claimsBy.get(c.id) ?? [], ctx) })).filter((x) => x.e.overall !== "FAIL")
+      .map(({ c, e }) => buildResult(scoutingId, c, e, claimsBy.get(c.id) ?? [], spec, s, false)).sort(byEvidenceThenFit);
+    // Con requisitos duros, la lista son solo las verificadas con evidencia: un perfil sin evidencia del tema no es una recomendación.
+    const finals = (hasHard ? scored.filter((r) => r.verdict === "PASS") : scored).map((r, idx) => ({ ...r, rank: idx + 1 }));
+    const unverified = hasHard ? scored.length - finals.length : 0;
     await progress(0.4);
     const top = finals.slice(0, LIMITS.explainTop);
     const explanations = await explainResults(top.map((r) => explainInput(r, deep.find((c) => c.id === r.creator_id)!, claimsBy.get(r.creator_id) ?? [])));
@@ -179,7 +204,7 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
     if (mediaEnabled()) { const n = await ensureMediaFor(finals.map((r) => r.creator_id), { content: 3 }); if (n) await ev(5, `Saved profile photos and recent posts for ${n} creators`); }
     const strong = finals.filter((r) => r.fit >= 80).length;
     await ev(5, `Ranked ${finals.length} creators by fit · ${strong} strong candidates`);
-    await mergeMetrics(scoutingId, { strong, profiles_analyzed: deep.length, cost_usd: round(cost) });
+    await mergeMetrics(scoutingId, { strong, unverified, profiles_analyzed: deep.length, cost_usd: round(cost) });
     await setStage(scoutingId, 5, "done", `${finals.length} creators ranked`);
     await updateScouting(scoutingId, { status: "done", finished_at: new Date(), stage: 5, stage_progress: 1 });
   } catch (e) {

@@ -79,7 +79,7 @@ export default async function ScoutingPage({ params }: { params: Promise<{ id: s
           </div>
         </section>
 
-        <Results id={id} results={results} diagnostic={(s.metrics as { diagnostic?: string }).diagnostic ?? null} />
+        <Results id={id} results={results} diagnostic={(s.metrics as { diagnostic?: string }).diagnostic ?? null} unverified={(s.metrics as { unverified?: number }).unverified ?? 0} />
       </main>
     </Shell>
   );

@@ -8,7 +8,7 @@ import { fmtK, fmtPct, platformLabel, tierColor } from "@/lib/format";
 
 const PAGE = 10;
 
-export function Results({ id, results, diagnostic }: { id: string; results: ScoutingResult[]; diagnostic?: string | null }) {
+export function Results({ id, results, diagnostic, unverified = 0 }: { id: string; results: ScoutingResult[]; diagnostic?: string | null; unverified?: number }) {
   const [sel, setSel] = useState<string | null>(results[0]?.creator_id ?? null);
   const [plat, setPlat] = useState("all");
   const [sort, setSort] = useState<"fit" | "followers" | "engagement">("fit");
@@ -32,7 +32,7 @@ export function Results({ id, results, diagnostic }: { id: string; results: Scou
     return (
       <section className="card" style={{ padding: "32px 36px", display: "flex", flexDirection: "column", gap: 10 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em" }}>No creators matched this brief</h2>
-        <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.6, color: "var(--ink-3)", maxWidth: 720 }}>{diagnostic ?? "The search found profiles, but none passed the brief’s hard filters. Try widening the follower range or the location, and launch it again with “Duplicate brief”."}</p>
+        <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.6, color: "var(--ink-3)", maxWidth: 720 }}>{unverified > 0 ? `${unverified} profiles matched size, location and language, but none showed evidence for the brief’s requirements in their bio, posts or reels. Try a broader topic, or launch again later: the index keeps growing.` : diagnostic ?? "The search found profiles, but none passed the brief’s hard filters. Try widening the follower range or the location, and launch it again with “Duplicate brief”."}</p>
       </section>
     );
   }
@@ -42,7 +42,7 @@ export function Results({ id, results, diagnostic }: { id: string; results: Scou
         <div style={{ padding: "14px 16px 14px 20px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12, borderBottom: "1px solid var(--line-3)" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
             <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{results.length} creators</h2>
-            <span style={{ fontSize: 13, color: "var(--muted)" }}>ranked by fit with the brief</span>
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>verified on the brief, ranked by fit{unverified > 0 ? ` · ${unverified} more matched size and location but showed no evidence for the brief and are not listed` : ""}</span>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
             {plats.length > 2 && (
