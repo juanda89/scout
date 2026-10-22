@@ -27,10 +27,10 @@ URL pública: `https://dvize5gk9sjfs.cloudfront.net`. Origen: `http://100.63.14.
 ssh -i ~/.ssh/scout-lightsail.pem ubuntu@100.63.14.124
 
 # Logs
-docker compose -f /opt/scout/docker-compose.prod.yml logs -f web worker
+cd /opt/scout && docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f web worker
 
 # CLI del motor dentro del contenedor del worker
-docker compose -f /opt/scout/docker-compose.prod.yml exec worker node_modules/.bin/tsx packages/core/src/cli.ts scouting list
+cd /opt/scout && docker compose --env-file .env.prod -f docker-compose.prod.yml exec worker node_modules/.bin/tsx packages/core/src/cli.ts scouting list
 ```
 
 La base de datos vive en el volumen Docker `pgdata` de la instancia. No hay backups automáticos: antes de usarlo con clientes, activar snapshots de Lightsail o pasar a RDS según `docs/PLAN_PRODUCCION.md`.
