@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Scout — Confirm your brief</title>
+<script src="3b2fa11f-ec5c-4e80-8396-4208f39f09ff"></script>
+<script src="7ba417aa-8d90-4e9f-a4e9-a12e2e30deb3"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style></style>
+<style>
+body{margin:0;background:#F4F4F6;-webkit-font-smoothing:antialiased}
+a{color:#0B0B0C}a:hover{color:#0B0B0C}
+button,input,select,textarea{font:inherit;color:inherit}
+input::placeholder,textarea::placeholder{color:#8A8A92}
+.in{transition:border-color .16s ease,box-shadow .16s ease}
+.in:focus{outline:none;border-color:#0B0B0C !important;box-shadow:0 0 0 3px rgba(11,11,12,.07)}
+.tbox:focus-within{border-color:#0B0B0C !important;box-shadow:0 0 0 3px rgba(11,11,12,.07)}
+.btn{transition:background .16s ease}
+.btn:hover{background:#2B2B30 !important}
+.ghost{transition:background .16s ease}
+.ghost:hover{background:#EDEDEF !important}
+.crumb:hover{color:#0B0B0C !important}
+.pchip{transition:background .16s ease,border-color .16s ease,color .16s ease}
+.pchip[aria-pressed="false"]:hover{border-color:#B4B4BB !important}
+.jump:hover{text-decoration:underline}
+:focus-visible{outline:2px solid #0B0B0C;outline-offset:2px}
+.in:focus-visible,#f-topic:focus-visible{outline:none}
+mark{background:#EEEEF1;color:inherit;border-radius:5px;padding:2px 5px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+mark sup{font-family:'Geist Mono',ui-monospace,'SF Mono',Menlo,monospace;font-size:10px;line-height:0;color:#52525B;margin-left:3px}
+@keyframes introOut{to{opacity:0;visibility:hidden}}
+.intro{animation:introOut .45s ease 1.5s forwards}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.r1{animation:rise .6s cubic-bezier(.2,.7,.2,1) 1.55s both}
+.r2{animation:rise .6s cubic-bezier(.2,.7,.2,1) 1.65s both}
+.r3{animation:rise .6s cubic-bezier(.2,.7,.2,1) 1.75s both}
+.r4{animation:rise .6s cubic-bezier(.2,.7,.2,1) 1.85s both}
+.r5{animation:rise .6s cubic-bezier(.2,.7,.2,1) 1.95s both}
+.r6{animation:rise .6s cubic-bezier(.2,.7,.2,1) 2.05s both}
+@media (prefers-reduced-motion: reduce){.intro{display:none}.r1,.r2,.r3,.r4,.r5,.r6{animation:none}}
+</style>
+</helmet>
+<div style="position: relative; min-height: 100vh; display: flex; flex-direction: column; background: #F4F4F6; color: #0B0B0C; font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <div aria-hidden="true" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 0; pointer-events: none; overflow: hidden">
+    <dc-import name="Field" fx="0.8" fy="0.12" hint-size="100%,100%"></dc-import>
+  </div>
+
+  <div class="intro" aria-hidden="true" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 220px; gap: 18px; background: rgba(244,244,246,0.86); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); text-align: center">
+    <div style="position: relative; width: 72px; height: 72px; margin: 64px 0 52px">
+      <div aria-hidden="true" style="position: absolute; left: -84px; top: -84px">
+        <dc-import name="Hud" px="240" hint-size="240px,240px"></dc-import>
+      </div>
+      <div style="position: relative">
+        <dc-import name="Orb" mode="shaping" px="72" hint-size="72px,72px"></dc-import>
+      </div>
+    </div>
+    <span style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em">Shaping your brief…</span>
+    <span style="font-size: 13.5px; color: #6B6B73">Reading your description and turning it into fields.</span>
+  </div>
+
+  <header style="flex: none; min-height: 60px; box-sizing: border-box; padding: 10px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px; background: rgba(255,255,255,0.7); backdrop-filter: blur(18px) saturate(1.5); -webkit-backdrop-filter: blur(18px) saturate(1.5); border-bottom: 1px solid rgba(16,16,24,0.07); position: relative; z-index: 2">
+    <div style="display: flex; align-items: center; gap: 14px; min-width: 0">
+      <a href="Dashboard.dc.html" aria-label="scout — home" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #0B0B0C">
+        <svg width="18" height="18" sc-camel-view-box="0 0 18 18" aria-hidden="true">
+          <circle cx="16" cy="9" r="1.35" fill="#0B0B0C"></circle>
+          <circle cx="15.06" cy="12.5" r="1.3" fill="#0B0B0C" fill-opacity="0.92"></circle>
+          <circle cx="12.5" cy="15.06" r="1.25" fill="#0B0B0C" fill-opacity="0.84"></circle>
+          <circle cx="9" cy="16" r="1.2" fill="#0B0B0C" fill-opacity="0.76"></circle>
+          <circle cx="5.5" cy="15.06" r="1.15" fill="#0B0B0C" fill-opacity="0.68"></circle>
+          <circle cx="2.94" cy="12.5" r="1.1" fill="#0B0B0C" fill-opacity="0.6"></circle>
+          <circle cx="2" cy="9" r="1.05" fill="#0B0B0C" fill-opacity="0.52"></circle>
+          <circle cx="2.94" cy="5.5" r="1" fill="#0B0B0C" fill-opacity="0.44"></circle>
+          <circle cx="5.5" cy="2.94" r="0.95" fill="#0B0B0C" fill-opacity="0.36"></circle>
+          <circle cx="9" cy="2" r="0.9" fill="#0B0B0C" fill-opacity="0.3"></circle>
+          <circle cx="12.5" cy="2.94" r="0.9" fill="#0B0B0C" fill-opacity="0.26"></circle>
+          <circle cx="15.06" cy="5.5" r="0.9" fill="#0B0B0C" fill-opacity="0.22"></circle>
+          <circle cx="9" cy="9" r="1.7" fill="#0B0B0C"></circle>
+        </svg>
+        <span style="font-size: 16px; font-weight: 600; letter-spacing: -0.02em">scout</span>
+      </a>
+      <span aria-hidden="true" style="width: 1px; height: 20px; background: #E6E6E9"></span>
+      <nav aria-label="Breadcrumb" style="display: flex; align-items: center; gap: 8px; font-size: 14px">
+        <a href="Dashboard.dc.html" class="crumb" style="color: #6B6B73; text-decoration: none">Scoutings</a>
+        <span aria-hidden="true" style="color: #B4B4BB">/</span>
+        <span aria-current="page" style="font-weight: 500">New scouting</span>
+      </nav>
+    </div>
+    <ol aria-label="Steps" style="margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px">
+      <li style="display: flex; align-items: center; gap: 8px">
+        <span style="width: 22px; height: 22px; border-radius: 50%; background: #0B0B0C; color: #FFFFFF; display: flex; align-items: center; justify-content: center">
+          <svg width="11" height="11" sc-camel-view-box="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6.2 5 8.5l4.5-5"></path></svg>
+        </span>
+        <a href="Brief.dc.html" class="crumb" style="color: #52525B; text-decoration: none">Describe</a>
+      </li>
+      <li aria-hidden="true" style="width: 24px; height: 1px; background: #0B0B0C"></li>
+      <li aria-current="step" style="display: flex; align-items: center; gap: 8px; font-weight: 500">
+        <span style="width: 22px; height: 22px; border-radius: 50%; background: #0B0B0C; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600">2</span>Confirm
+      </li>
+      <li aria-hidden="true" style="width: 24px; height: 1px; background: #DCDCE1"></li>
+      <li style="display: flex; align-items: center; gap: 8px; color: #6B6B73">
+        <span style="width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%; border: 1px solid #DCDCE1; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600">3</span>Scouting
+      </li>
+    </ol>
+    <a href="Dashboard.dc.html" class="ghost" style="height: 36px; box-sizing: border-box; padding: 0 12px; display: flex; align-items: center; border-radius: 10px; color: #3F3F46; text-decoration: none; font-size: 14px; font-weight: 500">Cancel</a>
+  </header>
+
+  <main style="position: relative; z-index: 1; flex: 1; width: 100%; max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: 32px 24px 64px; display: flex; flex-direction: column; gap: 24px">
+    <div class="r1" style="display: flex; flex-direction: column; gap: 6px">
+      <h1 style="margin: 0; font-size: 26px; line-height: 1.2; font-weight: 600; letter-spacing: -0.025em">Confirm your brief</h1>
+      <p style="margin: 0; max-width: 620px; font-size: 14.5px; line-height: 1.55; color: #4B4B52; text-wrap: pretty">Here’s what we understood from your description. Fill in what’s missing and adjust anything before you launch the scouting.</p>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px">
+
+      <div style="flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+        <section class="r2" aria-label="Name" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; background: rgba(255,255,255,0.78); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border: 1px solid rgba(16,16,24,0.07); border-radius: 16px; box-shadow: 0 1px 2px rgba(16,16,24,0.04)">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+            <label for="f-name" style="font-size: 13px; font-weight: 500">Scouting name</label>
+            <span style="display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #6B6B73"><span aria-hidden="true" style="width: 7px; height: 7px; box-sizing: border-box; border-radius: 50%; border: 1px solid #8A8A92"></span>Suggested</span>
+          </div>
+          <input id="f-name" class="in" value="{{v.name}}" sc-camel-on-change="{{on.name}}" style="height: 48px; width: 100%; box-sizing: border-box; padding: 0 14px; border: 1px solid #DCDCE1; border-radius: 10px; background: #FFFFFF; font-size: 18px; font-weight: 500; letter-spacing: -0.015em">
+        </section>
+
+        <section class="r3" aria-labelledby="s-camp" style="background: rgba(255,255,255,0.78); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border: 1px solid rgba(16,16,24,0.07); border-radius: 16px; box-shadow: 0 1px 2px rgba(16,16,24,0.04); overflow: hidden">
+          <div style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #EFEFF2">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <span style="width: 22px; height: 22px; border-radius: 6px; background: #F1F1F3; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; color: #3F3F46">1</span>
+              <h2 id="s-camp" style="margin: 0; font-size: 15px; font-weight: 600">Campaign</h2>
+            </div>
+            <span style="height: 22px; box-sizing: border-box; padding: 0 9px; display: flex; align-items: center; border-radius: 999px; background: {{sec.camp.bg}}; color: {{sec.camp.c}}; font-size: 12px; font-weight: 500">{{sec.camp.t}}</span>
+          </div>
+          <div style="padding: 18px 20px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 18px 20px">
+            <div style="display: flex; flex-direction: column; gap: 7px; min-width: 0">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <label for="f-brand" style="font-size: 13px; font-weight: 500">Brand <span style="color: #C2410C">*</span></label>
+                <sc-if value="{{miss.brand}}" hint-placeholder-val="{{ true }}">
+                  <span style="height: 20px; box-sizing: border-box; padding: 0 8px; display: flex; align-items: center; border-radius: 999px; background: #FDEFE6; color: #9A3A09; font-size: 11.5px; font-weight: 500">Required</span>
+                </sc-if>
+                <sc-if value="{{ok.brand}}" hint-placeholder-val="{{ false }}">
+                  <span style="display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: #14692F"><svg width="12" height="12" sc-camel-view-box="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6.2 5 8.5l4.5-5"></path></svg>Done</span>
+                </sc-if>
+              </div>
+              <input id="f-brand" class="in" value="{{v.brand}}" sc-camel-on-change="{{on.brand}}" placeholder="Brand name" aria-required="true" style="height: 42px; width: 100%; box-sizing: border-box; padding: 0 12px; border: 1px solid {{bd.brand}}; border-radius: 10px; background: {{bgf.brand}}; font-size: 14.5px">
+              <sc-if value="{{miss.brand}}" hint-placeholder-val="{{ true }}">
+                <span style="font-size: 12px; color: #9A3A09">You didn’t mention it in your description.</span>
+              </sc-if>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 7px; min-width: 0">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <label for="f-product" style="font-size: 13px; font-weight: 500">Product</label>
+                <span style="display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #6B6B73"><span style="min-width: 16px; height: 16px; border-radius: 4px; background: #F1F1F3; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #3F3F46">6</span>Detected</span>
+              </div>
+              <input id="f-product" class="in" value="{{v.product}}" sc-camel-on-change="{{on.product}}" style="height: 42px; width: 100%; box-sizing: border-box; padding: 0 12px; border: 1px solid #DCDCE1; border-radius: 10px; background: #FFFFFF; font-size: 14.5px">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 7px; min-width: 0">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <label for="f-goal" style="font-size: 13px; font-weight: 500">Goal</label>
+                <span style="display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #6B6B73"><span style="min-width: 16px; height: 16px; border-radius: 4px; background: #F1F1F3; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #3F3F46">6</span>Detected</span>
+              </div>
+              <div style="position: relative">
+                <sc-raw-select id="f-goal" class="in" value="{{v.goal}}" sc-camel-on-change="{{on.goal}}" style="height: 42px; width: 100%; box-sizing: border-box; padding: 0 36px 0 12px; border: 1px solid #DCDCE1; border-radius: 10px; background: #FFFFFF; font-size: 14.5px; appearance: none; -webkit-appearance: none; cursor: pointer">
+                  <option>Product launch</option>
+                  <option>Brand awareness</option>
+                  <option>Sales and conversions</option>
+                  <option>UGC content</option>
+                </sc-raw-select>
+                <svg width="16" height="16" sc-camel-view-box="0 0 16 16" fill="none" stroke="#52525B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="position: absolute; right: 12px; top: 13px; pointer-events: none"><path d="m4 6 4 4 4-4"></path></svg>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 7px; min-width: 0">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <label for="f-date" style="font-size: 13px; font-weight: 500">Launch date</label>
+                <span style="display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #6B6B73"><span style="min-width: 16px; height: 16px; border-radius: 4px; background: #F1F1F3; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #3F3F46">7</span>Detected</span>
+              </div>
+              <input id="f-date" class="in" value="{{v.date}}" sc-camel-on-change="{{on.date}}" style="height: 42px; width: 100%; box-sizing: border-box; padding: 0 12px; border: 1px solid #DCDCE1; border-radius: 10px; background: #FFFFFF; font-size: 14.5px">
+            </div>
+          </div>
+        </section>
+
+        <section class="r4" aria-labelledby="s-crea" style="background: rgba(255,255,255,0.78); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border: 1px solid rgba(16,16,24,0.07); border-radius: 16px; box-shadow: 0 1px 2px rgba(16,16,24,0.04); overflow: hidden">
+          <div style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #EFEFF2">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <span style="width: 22px; height: 22px; border-radius: 6px; background: #F1F1F3; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; color: #3F3F46">2</span>
+              <h2 id="s-crea" style="margin: 0; font-size: 15px; font-weight: 600">Creators</h2>
+            </div>
+            <span style="height: 22px; box-sizing: border-box; padding: 0 9px; display: flex; align-items: center; border-radius: 999px; background: {{sec.crea.bg}}; color: {{sec.crea.c}}; font-size: 12px; font-weight: 500">{{sec.crea.t}}</span>
+          </div>
+          <div style="padding: 18px 20px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 18px 20px">
+            <div style="display: flex; flex-direction: column; gap: 7px; min-width: 0">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <label for="f-count" style="font-size: 13px; font-weight: 500">Number of creators <span style="color: #C2410C">*</span></label>
+                <span style="display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #6B6B73"><span style="min-width: 16px; height: 16px; border-radius: 4px; background: #F1F1F3; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #3F3F46">1</span>Detected</span>
+              </div>
+              <input id="f-count" class="in" inputmode="numeric" value="{{v.count}}" sc-camel-on-change="{{on.count}}" aria-required="true" style="height: 42px; width: 100%; box-sizing: border-box; padding: 0 12px; border: 1px solid {{bd.count}}; border-radius: 10px; background: {{bgf.count}}; font-size: 14.5px; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace">
+            </div>
+            <div role="group" aria-labelledby="l-plat" style="display: flex; flex-direction: column; gap: 7px; min-width: 0">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <span id="l-plat" style="font-size: 13px; font-weight: 500">Platforms <span style="color: #C2410C">*</span></span>
+                <span style="display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: {{platTag.c}}"><span style="min-width: 16px; height: 16px; border-radius: 4px; background: #F1F1F3; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #3F3F46">2</span>{{platTag.t}}</span>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px">
+                <sc-for list="{{plats}}" as="p" hint-placeholder-count="3">
+                  <button class="pchip" sc-camel-on-click="{{p.toggle}}" aria-pressed="{{p.on}}" style="height: 42px; padding: 0 12px; display: flex; align-items: center; gap: 6px; border-radius: 10px; border: 1px solid {{p.bd}}; background: {{p.bg}}; color: {{p.c}}; font-size: 13.5px; font-weight: 500; cursor: pointer">
+                    <svg width="12" height="12" sc-camel-view-box="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity: {{p.iconO}}"><path d="M2.5 6.2 5 8.5l4.5-5"></path></svg>
+                    <span>{{p.label}}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 7px; min-width: 0">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <span style="font-size: 13px; font-weight: 500">Followers</span>
+                <span style="display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #6B6B73"><span style="min-width: 16px; height: 16px; border-radius: 4px; background: #F1F1F3; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #3F3F46">5</span>Detected</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px">
+                <input class="in" aria-label="Minimum followers" value="{{v.fmin}}" sc-camel-on-change="{{on.fmin}}" style="height: 42px; flex: 1; min-width: 0; box-sizing: border-box; padding: 0 12px; border: 1px solid #DCDCE1; border-radius: 10px; background: #FFFFFF; font-size: 14.5px; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace">
+                <span aria-hidden="true" style="color: #8A8A92">–</span>
+                <input class="in" aria-label="Maximum followers" value="{{v.fmax}}" sc-camel-on-change="{{on.fmax}}" style="height: 42px; flex: 1; min-width: 0; box-sizing: border-box; padding: 0 12px; border: 1px solid #DCDCE1; border-radius: 10px; background: #FFFFFF; font-size: 14.5px; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace">
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 7px; min-width: 0">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <label for="f-er" style="font-size: 13px; font-weight: 500">Minimum engagement</label>
+                <span style="display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #6B6B73"><span aria-hidden="true" style="width: 7px; height: 7px; box-sizing: border-box; border-radius: 50%; border: 1px solid #8A8A92"></span>Suggested</span>
+              </div>
+              <div style="position: relative">
+                <input id="f-er" class="in" inputmode="decimal" value="{{v.er}}" sc-camel-on-change="{{on.er}}" style="height: 42px; width: 100%; box-sizing: border-box; padding: 0 34px 0 12px; border: 1px solid #DCDCE1; border-radius: 10px; background: #FFFFFF; font-size: 14.5px; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace">
+                <span aria-hidden="true" style="position: absolute; right: 12px; top: 11px; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 14px; color: #6B6B73">%</span>
+              </div>
+            </div>
+            <div style="grid-column: 1 / -1; display: flex; flex-direction: column; gap: 7px; min-width: 0">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <label for="f-topic" style="font-size: 13px; font-weight: 500">Topics</label>
+                <span style="display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #6B6B73"><span style="min-width: 16px; height: 16px; border-radius: 4px; background: #F1F1F3; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #3F3F46">4</span>Detected</span>
+              </div>
+              <div class="tbox" style="min-height: 48px; box-sizing: border-box; padding: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; border: 1px solid #DCDCE1; border-radius: 10px; background: #FFFFFF; transition: border-color .16s ease, box-shadow .16s ease">
+                <sc-for list="{{topics}}" as="tp" hint-placeholder-count="2">
+                  <span style="height: 34px; box-sizing: border-box; padding: 0 4px 0 11px; display: flex; align-items: center; gap: 2px; border-radius: 7px; background: #F1F1F3; font-size: 13.5px">
+                    <span>{{tp.label}}</span>
+                    <button sc-camel-on-click="{{tp.remove}}" aria-label="Remove {{tp.label}}" style="width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: transparent; color: #52525B; cursor: pointer">
+                      <svg width="12" height="12" sc-camel-view-box="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3 3l6 6M9 3 3 9"></path></svg>
+                    </button>
+                  </span>
+                </sc-for>
+                <input id="f-topic" value="{{newTopic}}" sc-camel-on-change="{{onTopic}}" sc-camel-on-key-down="{{onTopicKey}}" placeholder="Add one and press Enter" style="flex: 1; min-width: 160px; height: 34px; box-sizing: border-box; padding: 0 8px; border: 0; outline: none; background: transparent; font-size: 14px">
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="r5" aria-labelledby="s-aud" style="background: rgba(255,255,255,0.78); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border: 1px solid rgba(16,16,24,0.07); border-radius: 16px; box-shadow: 0 1px 2px rgba(16,16,24,0.04); overflow: hidden">
+          <div style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #EFEFF2">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <span style="width: 22px; height: 22px; border-radius: 6px; background: #F1F1F3; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; color: #3F3F46">3</span>
+              <h2 id="s-aud" style="margin: 0; font-size: 15px; font-weight: 600">Audience</h2>
+            </div>
+            <span style="height: 22px; box-sizing: border-box; padding: 0 9px; display: flex; align-items: center; border-radius: 999px; background: {{sec.aud.bg}}; color: {{sec.aud.c}}; font-size: 12px; font-weight: 500">{{sec.aud.t}}</span>
+          </div>
+          <div style="padding: 18px 20px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 18px 20px">
+            <div style="display: flex; flex-direction: column; gap: 7px; min-width: 0">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <label for="f-loc" style="font-size: 13px; font-weight: 500">Location <span style="color: #C2410C">*</span></label>
+                <span style="display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #6B6B73"><span style="min-width: 16px; height: 16px; border-radius: 4px; background: #F1F1F3; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #3F3F46">3</span>Detected</span>
+              </div>
+              <input id="f-loc" class="in" value="{{v.loc}}" sc-camel-on-change="{{on.loc}}" aria-required="true" style="height: 42px; width: 100%; box-sizing: border-box; padding: 0 12px; border: 1px solid {{bd.loc}}; border-radius: 10px; background: {{bgf.loc}}; font-size: 14.5px">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 7px; min-width: 0">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <label for="f-age" style="font-size: 13px; font-weight: 500">Age</label>
+                <span style="display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #6B6B73"><span style="min-width: 16px; height: 16px; border-radius: 4px; background: #F1F1F3; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10px; color: #3F3F46">8</span>Detected</span>
+              </div>
+              <input id="f-age" class="in" value="{{v.age}}" sc-camel-on-change="{{on.age}}" style="height: 42px; width: 100%; box-sizing: border-box; padding: 0 12px; border: 1px solid #DCDCE1; border-radius: 10px; background: #FFFFFF; font-size: 14.5px; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 7px; min-width: 0">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <label for="f-lang" style="font-size: 13px; font-weight: 500">Content language</label>
+                <span style="display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #6B6B73"><span aria-hidden="true" style="width: 7px; height: 7px; box-sizing: border-box; border-radius: 50%; border: 1px solid #3F3F46; background: linear-gradient(90deg, #3F3F46 50%, #FFFFFF 50%)"></span>Inferred</span>
+              </div>
+              <div style="position: relative">
+                <sc-raw-select id="f-lang" class="in" value="{{v.lang}}" sc-camel-on-change="{{on.lang}}" style="height: 42px; width: 100%; box-sizing: border-box; padding: 0 36px 0 12px; border: 1px solid #DCDCE1; border-radius: 10px; background: #FFFFFF; font-size: 14.5px; appearance: none; -webkit-appearance: none; cursor: pointer">
+                  <option>Spanish</option>
+                  <option>English</option>
+                  <option>Portuguese</option>
+                </sc-raw-select>
+                <svg width="16" height="16" sc-camel-view-box="0 0 16 16" fill="none" stroke="#52525B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="position: absolute; right: 12px; top: 13px; pointer-events: none"><path d="m4 6 4 4 4-4"></path></svg>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="r6" aria-labelledby="s-bud" style="background: rgba(255,255,255,0.78); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border: 1px solid rgba(16,16,24,0.07); border-radius: 16px; box-shadow: 0 1px 2px rgba(16,16,24,0.04); overflow: hidden">
+          <div style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #EFEFF2">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <span style="width: 22px; height: 22px; border-radius: 6px; background: #F1F1F3; display: flex; align-items: center; justify-content: center; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; color: #3F3F46">4</span>
+              <h2 id="s-bud" style="margin: 0; font-size: 15px; font-weight: 600">Budget and constraints</h2>
+            </div>
+            <span style="height: 22px; box-sizing: border-box; padding: 0 9px; display: flex; align-items: center; border-radius: 999px; background: {{sec.bud.bg}}; color: {{sec.bud.c}}; font-size: 12px; font-weight: 500">{{sec.bud.t}}</span>
+          </div>
+          <div style="padding: 18px 20px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 18px 20px">
+            <div style="display: flex; flex-direction: column; gap: 7px; min-width: 0">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <label for="f-budget" style="font-size: 13px; font-weight: 500">Total budget <span style="color: #C2410C">*</span></label>
+                <sc-if value="{{miss.budget}}" hint-placeholder-val="{{ true }}">
+                  <span style="height: 20px; box-sizing: border-box; padding: 0 8px; display: flex; align-items: center; border-radius: 999px; background: #FDEFE6; color: #9A3A09; font-size: 11.5px; font-weight: 500">Required</span>
+                </sc-if>
+                <sc-if value="{{ok.budget}}" hint-placeholder-val="{{ false }}">
+                  <span style="display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: #14692F"><svg width="12" height="12" sc-camel-view-box="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6.2 5 8.5l4.5-5"></path></svg>Done</span>
+                </sc-if>
+              </div>
+              <div style="display: flex; gap: 8px">
+                <input id="f-budget" class="in" inputmode="numeric" value="{{v.budget}}" sc-camel-on-change="{{on.budget}}" placeholder="e.g. 12,000" aria-required="true" style="height: 42px; flex: 1; min-width: 0; box-sizing: border-box; padding: 0 12px; border: 1px solid {{bd.budget}}; border-radius: 10px; background: {{bgf.budget}}; font-size: 14.5px; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace">
+                <div style="position: relative; flex: none; width: 92px">
+                  <sc-raw-select class="in" aria-label="Currency" value="{{v.cur}}" sc-camel-on-change="{{on.cur}}" style="height: 42px; width: 100%; box-sizing: border-box; padding: 0 28px 0 12px; border: 1px solid #DCDCE1; border-radius: 10px; background: #FFFFFF; font-size: 14px; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; appearance: none; -webkit-appearance: none; cursor: pointer">
+                    <option>USD</option>
+                    <option>COP</option>
+                    <option>EUR</option>
+                    <option>MXN</option>
+                  </sc-raw-select>
+                  <svg width="14" height="14" sc-camel-view-box="0 0 16 16" fill="none" stroke="#52525B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="position: absolute; right: 10px; top: 14px; pointer-events: none"><path d="m4 6 4 4 4-4"></path></svg>
+                </div>
+              </div>
+              <span style="font-size: 12px; line-height: 1.45; color: {{budgetHelp.c}}">{{budgetHelp.t}}</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 7px; min-width: 0">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <label for="f-excl" style="font-size: 13px; font-weight: 500">Exclude</label>
+                <span style="font-size: 11.5px; color: #6B6B73">Optional</span>
+              </div>
+              <textarea id="f-excl" class="in" rows="2" value="{{v.excl}}" sc-camel-on-change="{{on.excl}}" placeholder="Competing brands, creators you’ve already worked with…" style="width: 100%; box-sizing: border-box; min-height: 74px; padding: 10px 12px; border: 1px solid #DCDCE1; border-radius: 10px; background: #FFFFFF; font-size: 14.5px; line-height: 1.45; resize: vertical"></textarea>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside style="flex: 1 1 320px; max-width: 380px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+        <section class="r2" aria-labelledby="s-state" style="background: rgba(255,255,255,0.78); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border: 1px solid rgba(16,16,24,0.07); border-radius: 16px; box-shadow: 0 1px 2px rgba(16,16,24,0.04), 0 8px 24px rgba(16,16,24,0.04); overflow: hidden">
+          <div style="padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px">
+              <h2 id="s-state" style="margin: 0; font-size: 15px; font-weight: 600">Brief status</h2>
+              <span style="font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; color: #4B4B52">{{doneN}} / {{totalN}}</span>
+            </div>
+            <div role="progressbar" aria-label="Fields complete" aria-valuenow="{{doneN}}" aria-valuemin="0" aria-valuemax="{{totalN}}" style="height: 6px; border-radius: 3px; background: #EDEDEF; overflow: hidden">
+              <div style="width: {{donePct}}%; height: 6px; border-radius: 3px; background: {{barC}}"></div>
+            </div>
+            <sc-if value="{{notReady}}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-direction: column; gap: 2px">
+                <span style="font-size: 13px; color: #4B4B52">Still needed:</span>
+                <sc-for list="{{missingList}}" as="m" hint-placeholder-count="2">
+                  <a href="{{m.href}}" class="jump" style="height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #0B0B0C; text-decoration: none; font-size: 13.5px; font-weight: 500">
+                    <span style="display: flex; align-items: center; gap: 8px"><span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: #C2410C"></span>{{m.t}}</span>
+                    <span style="font-size: 12.5px; font-weight: 500; color: #52525B">Fill in</span>
+                  </a>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ready}}" hint-placeholder-val="{{ false }}">
+              <span style="display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 500; color: #14692F"><svg width="14" height="14" sc-camel-view-box="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6.2 5 8.5l4.5-5"></path></svg>Ready to launch</span>
+            </sc-if>
+          </div>
+          <div style="padding: 14px 20px; display: flex; align-items: center; gap: 12px; border-top: 1px solid rgba(16,16,24,0.06); background: rgba(250,250,252,0.5)">
+            <dc-import name="Orb" mode="breathing" px="32" hint-size="32px,32px"></dc-import>
+            <div style="display: flex; flex-direction: column; gap: 2px">
+              <span style="font-size: 13.5px; font-weight: 500">Estimated time: 2–3 h</span>
+              <span style="font-size: 12.5px; line-height: 1.45; color: #6B6B73">Runs in the background. You can close the app — we’ll email you when it’s done.</span>
+            </div>
+          </div>
+          <div style="padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #EFEFF2">
+            <sc-if value="{{ready}}" hint-placeholder-val="{{ false }}">
+              <a href="Progreso.dc.html" class="btn" style="height: 44px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 10px; background: #0B0B0C; color: #FFFFFF; text-decoration: none; font-size: 14.5px; font-weight: 500">
+                <span>Create scouting</span>
+                <svg width="16" height="16" sc-camel-view-box="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"></path></svg>
+              </a>
+            </sc-if>
+            <sc-if value="{{notReady}}" hint-placeholder-val="{{ true }}">
+              <button disabled="" style="height: 44px; border: 0; border-radius: 10px; background: #EDEDEF; color: #6B6B73; font-size: 14.5px; font-weight: 500">{{ctaLabel}}</button>
+            </sc-if>
+            <a href="Brief.dc.html" class="ghost" style="height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 10px; color: #3F3F46; text-decoration: none; font-size: 13.5px; font-weight: 500">Back to description</a>
+          </div>
+        </section>
+
+        <figure class="r3" style="margin: 0; position: relative; box-sizing: border-box; padding: 44px 22px 44px; background: rgba(255,255,255,0.78); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border: 1px solid rgba(16,16,24,0.07); border-radius: 16px; box-shadow: 0 1px 2px rgba(16,16,24,0.04)">
+          <span aria-hidden="true" style="position: absolute; top: 10px; left: 10px; width: 5px; height: 5px; border-radius: 50%; border: 1px solid #D4D4DA"></span>
+          <span aria-hidden="true" style="position: absolute; top: 10px; right: 10px; width: 5px; height: 5px; border-radius: 50%; border: 1px solid #D4D4DA"></span>
+          <span aria-hidden="true" style="position: absolute; bottom: 10px; left: 10px; width: 5px; height: 5px; border-radius: 50%; border: 1px solid #D4D4DA"></span>
+          <span aria-hidden="true" style="position: absolute; bottom: 10px; right: 10px; width: 5px; height: 5px; border-radius: 50%; border: 1px solid #D4D4DA"></span>
+          <span style="position: absolute; top: 18px; left: 22px; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #6B6B73">Fig. 01</span>
+          <span style="position: absolute; top: 18px; right: 22px; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #6B6B73">Your description</span>
+          <p style="margin: 0; font-size: 15px; line-height: 1.85; text-wrap: pretty">Looking for <mark>15 creators<sup>1</sup></mark> on <mark>TikTok and Instagram<sup>2</sup></mark> in <mark>Bogotá and Medellín<sup>3</sup></mark> who talk about <mark>running and an active lifestyle<sup>4</sup></mark>, with <mark>20k to 300k followers<sup>5</sup></mark>, for the <mark>launch of a running shoe<sup>6</sup></mark> <mark>in March<sup>7</sup></mark>. Their audience should be <mark>18 to 34 years old<sup>8</sup></mark>.</p>
+          <span style="position: absolute; bottom: 18px; left: 22px; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #6B6B73">Number = field</span>
+          <span style="position: absolute; bottom: 18px; right: 22px; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #0B0B0C">8 data points</span>
+        </figure>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1900}}">
+class Component extends DCLogic {
+  renderVals() {
+    var self = this;
+    var st = this.state || {};
+    var D = {
+      name: 'Urban running — Bogotá & Medellín',
+      brand: '', product: 'Running shoes', goal: 'Product launch', date: 'March 2027',
+      count: '15', fmin: '20k', fmax: '300k', er: '3',
+      loc: 'Bogotá, Medellín (Colombia)', age: '18–34', lang: 'Spanish',
+      budget: '', cur: 'USD', excl: ''
+    };
+    var vals = st.v || {};
+    var v = {}, on = {};
+    Object.keys(D).forEach(function (k) {
+      v[k] = vals[k] != null ? vals[k] : D[k];
+      on[k] = function (e) {
+        var next = Object.assign({}, self.state && self.state.v);
+        next[k] = e.target.value;
+        self.setState({ v: next });
+      };
+    });
+    function filled(k) { return String(v[k]).trim() !== ''; }
+
+    var P = st.plat || { tiktok: true, instagram: true, youtube: false };
+    var PL = [['tiktok', 'TikTok'], ['instagram', 'Instagram'], ['youtube', 'YouTube']];
+    var plats = PL.map(function (p) {
+      var isOn = !!P[p[0]];
+      return {
+        label: p[1], on: isOn, iconO: isOn ? 1 : 0,
+        bd: isOn ? '#0B0B0C' : '#DCDCE1', bg: isOn ? '#0B0B0C' : '#FFFFFF', c: isOn ? '#FFFFFF' : '#3F3F46',
+        toggle: function () { var n = Object.assign({}, P); n[p[0]] = !isOn; self.setState({ plat: n }); }
+      };
+    });
+    var anyPlat = PL.some(function (p) { return !!P[p[0]]; });
+
+    var topicsList = st.topics || ['Running', 'Active lifestyle'];
+    var topics = topicsList.map(function (t, i) {
+      return { label: t, remove: function () { var n = topicsList.slice(); n.splice(i, 1); self.setState({ topics: n }); } };
+    });
+
+    var REQ = [['brand', 'Brand', '#f-brand'], ['count', 'Number of creators', '#f-count'], ['loc', 'Location', '#f-loc'], ['budget', 'Total budget', '#f-budget']];
+    var miss = {}, ok = {}, bd = {}, bgf = {}, missingList = [];
+    REQ.forEach(function (r) {
+      var e = !filled(r[0]);
+      miss[r[0]] = e; ok[r[0]] = !e;
+      bd[r[0]] = e ? '#E39A6F' : '#DCDCE1';
+      bgf[r[0]] = e ? '#FFFAF6' : '#FFFFFF';
+      if (e) missingList.push({ t: r[1], href: r[2] });
+    });
+    if (!anyPlat) missingList.push({ t: 'Platforms', href: '#l-plat' });
+
+    var fieldsOk = ['name', 'brand', 'product', 'goal', 'date', 'count', 'fmin', 'er', 'loc', 'age', 'lang', 'budget'].filter(filled).length
+      + (anyPlat ? 1 : 0) + (topicsList.length ? 1 : 0);
+    var totalN = 14;
+    var n = missingList.length;
+
+    function badge(missing) {
+      return missing > 0
+        ? { t: missing + ' missing', bg: '#FDEFE6', c: '#9A3A09' }
+        : { t: 'Complete', bg: '#E8F5EC', c: '#14692F' };
+    }
+    var sec = {
+      camp: badge(miss.brand ? 1 : 0),
+      crea: badge((miss.count ? 1 : 0) + (anyPlat ? 0 : 1)),
+      aud: badge(miss.loc ? 1 : 0),
+      bud: badge(miss.budget ? 1 : 0)
+    };
+
+    return {
+      v: v, on: on, plats: plats, topics: topics,
+      platTag: anyPlat ? { t: 'Detected', c: '#6B6B73' } : { t: 'Required', c: '#9A3A09' },
+      newTopic: st.newTopic || '',
+      onTopic: function (e) { self.setState({ newTopic: e.target.value }); },
+      onTopicKey: function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          var t = String((self.state && self.state.newTopic) || '').trim();
+          if (t) self.setState({ topics: topicsList.concat([t]), newTopic: '' });
+        }
+      },
+      miss: miss, ok: ok, bd: bd, bgf: bgf, sec: sec,
+      budgetHelp: miss.budget
+        ? { t: 'You didn’t mention it. We use it to rule out creators outside your rate range.', c: '#9A3A09' }
+        : { t: 'We use it to rule out creators outside your rate range.', c: '#6B6B73' },
+      missingList: missingList,
+      doneN: fieldsOk, totalN: totalN,
+      donePct: Math.round(fieldsOk / totalN * 100),
+      barC: n === 0 ? '#15803D' : '#0B0B0C',
+      ready: n === 0,
+      notReady: n > 0,
+      ctaLabel: n === 1 ? '1 field missing' : n + ' fields missing'
+    };
+  }
+}
+</script>
+
+
+</body></html>

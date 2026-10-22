@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Orb</title>
+<script src="1d924217-81b0-49a9-8dd3-6dfdbf2e514f"></script>
+<script src="8ac6622b-e2bc-4e61-8125-a4a68da1c201"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; flex: none; width: {{px}}px; height: {{px}}px; opacity: {{op}}; color: #0B0B0C">
+  <canvas ref="{{setRef}}" id="{{uid}}" width="{{pw}}" height="{{pw}}" role="img" aria-label="{{label}}" style="position: absolute; left: 0; top: 0; width: {{px}}px; height: {{px}}px; display: block"></canvas>
+  <sc-if value="{{showFallback}}" hint-placeholder-val="{{ true }}">
+    <div aria-hidden="true" style="position: absolute; left: 14%; top: 14%; right: 14%; bottom: 14%; border-radius: 50%; background-image: radial-gradient(circle, #0B0B0C 0.8px, transparent 1.3px); background-size: 6px 6px; opacity: 0.22"></div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;mode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;breathing&quot;,&quot;searching&quot;,&quot;working&quot;,&quot;listening&quot;,&quot;connecting&quot;,&quot;solving&quot;,&quot;shaping&quot;,&quot;weaving&quot;,&quot;composing&quot;],&quot;default&quot;:&quot;searching&quot;},&quot;px&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:200,&quot;min&quot;:16,&quot;max&quot;:480,&quot;unit&quot;:&quot;px&quot;},&quot;opacity&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1,&quot;min&quot;:0.1,&quot;max&quot;:1,&quot;step&quot;:0.05},&quot;speed&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:1,&quot;min&quot;:0.2,&quot;max&quot;:3,&quot;step&quot;:0.1},&quot;ink&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#0B0B0C&quot;,&quot;options&quot;:[&quot;#0B0B0C&quot;,&quot;#1D4ED8&quot;,&quot;#15803D&quot;]},&quot;$preview&quot;:{&quot;width&quot;:200,&quot;height&quot;:200}}">
+class Component extends DCLogic {
+  px() { var v = parseFloat(this.props.px); return v > 0 ? Math.round(v) : 200; }
+  spd() { var v = parseFloat(this.props.speed); return v > 0 ? v : 1; }
+  md() {
+    var m = this.props.mode || 'working';
+    var ok = { working: 1, searching: 1, solving: 1, listening: 1, connecting: 1, weaving: 1, composing: 1, breathing: 1, shaping: 1 };
+    return ok[m] ? m : 'working';
+  }
+  tint() {
+    var h = String(this.props.ink || '').trim().replace('#', '');
+    if (!h || /^(0b0b0c|000000|000|111111)$/i.test(h)) return undefined;
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    var n = parseInt(h.slice(0, 6), 16);
+    if (isNaN(n)) return undefined;
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+
+  componentDidMount() {
+    var self = this;
+    this._alive = true;
+    this._acc = Math.random() * 6;
+    this._last = null;
+    try { this._reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { this._reduce = false; }
+    var loop = function (now) {
+      if (!self._alive) return;
+      var T = window.ThinkingOrbs;
+      var c = self._c;
+      if (!c || !c.isConnected) { c = document.getElementById(self._uid); if (c) self._c = c; }
+      if (T && c) {
+        var px = self.px(), st = self.md();
+        var key = st + '|' + px;
+        if (key !== self._key) { self._key = key; self._res = T.resolveFor(st, px); self._sig = null; }
+        if (self._last == null) self._last = now;
+        var dt = Math.min(0.1, Math.max(0, (now - self._last) / 1000));
+        self._last = now;
+        var dpr = c.width / px;
+        var sig = key + '|' + c.width + '|' + self.props.ink;
+        if (!self._reduce) {
+          self._acc += dt * self._res.speed * self.spd();
+          T.draw(c, st, px, self._acc, { dpr: dpr, _res: self._res, tint: self.tint() });
+        } else if (sig !== self._sig) {
+          self._sig = sig;
+          T.draw(c, st, px, 0.6, { dpr: dpr, _res: self._res, tint: self.tint() });
+        }
+        if (!self._drawn) { self._drawn = true; self.setState({ live: true }); }
+      }
+      self._raf = requestAnimationFrame(loop);
+    };
+    this._raf = requestAnimationFrame(loop);
+  }
+
+  componentWillUnmount() {
+    this._alive = false;
+    if (this._raf) cancelAnimationFrame(this._raf);
+  }
+
+  renderVals() {
+    var self = this;
+    if (!this._uid) this._uid = 'orb-' + Math.random().toString(36).slice(2, 10);
+    if (!this._setRef) this._setRef = function (el) { if (el) self._c = el; };
+    var px = this.px(), dpr = 1;
+    try { dpr = Math.min(2, window.devicePixelRatio || 1); } catch (e) {}
+    var op = parseFloat(this.props.opacity);
+    var labels = { breathing: 'Idle', searching: 'Searching', working: 'Analyzing', listening: 'Listening', connecting: 'Connecting data', solving: 'Scoring', shaping: 'Shaping', weaving: 'Weaving', composing: 'Composing' };
+    var st = this.state || {};
+    return {
+      uid: this._uid,
+      setRef: this._setRef,
+      px: px,
+      pw: Math.round(px * dpr),
+      op: op > 0 && op <= 1 ? op : 1,
+      label: labels[this.md()] || 'Working',
+      showFallback: !st.live
+    };
+  }
+}
+</script>
+
+
+</body></html>

@@ -1,0 +1,1 @@
+{ "name": "@scout/db", "version": "0.1.0", "private": true, "description": "Migraciones SQL de Scout" }

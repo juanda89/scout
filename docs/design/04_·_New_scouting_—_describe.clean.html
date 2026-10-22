@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Scout — New scouting</title>
+<script src="68229b1e-c53e-4479-916d-94ca13f9e4b5"></script>
+<script src="170dc155-8999-4fef-ab73-7c6c1692e626"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style></style>
+<style>
+body{margin:0;background:#F4F4F6;-webkit-font-smoothing:antialiased}
+a{color:#0B0B0C}a:hover{color:#0B0B0C}
+button,textarea{font:inherit;color:inherit}
+textarea::placeholder{color:#8A8A92}
+.btn{transition:background .16s ease}
+.btn:hover{background:#2B2B30 !important}
+.ghost{transition:background .16s ease}
+.ghost:hover{background:#EDEDEF !important}
+.crumb:hover{color:#0B0B0C !important}
+.ex{transition:border-color .16s ease,box-shadow .16s ease}
+.ex:hover{border-color:#CFCFD5 !important;box-shadow:0 1px 2px rgba(16,16,24,.05),0 6px 18px rgba(16,16,24,.05) !important}
+.box{transition:border-color .18s ease,box-shadow .18s ease}
+.box:focus-within{border-color:#0B0B0C !important;box-shadow:0 0 0 4px rgba(11,11,12,.06),0 12px 32px rgba(16,16,24,.06) !important}
+.chip{transition:background .25s ease,color .25s ease,border-color .25s ease}
+:focus-visible{outline:2px solid #0B0B0C;outline-offset:2px}
+textarea:focus-visible{outline:none}
+</style>
+</helmet>
+<div style="position: relative; min-height: 100vh; display: flex; flex-direction: column; background: #F4F4F6; color: #0B0B0C; font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <div aria-hidden="true" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 0; pointer-events: none; overflow: hidden">
+    <dc-import name="Field" fx="0.5" fy="0.16" intensity="1.1" hint-size="100%,100%"></dc-import>
+  </div>
+
+  <header style="flex: none; min-height: 60px; box-sizing: border-box; padding: 10px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px; background: rgba(255,255,255,0.7); backdrop-filter: blur(18px) saturate(1.5); -webkit-backdrop-filter: blur(18px) saturate(1.5); border-bottom: 1px solid rgba(16,16,24,0.07); position: relative; z-index: 2">
+    <div style="display: flex; align-items: center; gap: 14px; min-width: 0">
+      <a href="Dashboard.dc.html" aria-label="scout — home" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #0B0B0C">
+        <svg width="18" height="18" sc-camel-view-box="0 0 18 18" aria-hidden="true">
+          <circle cx="16" cy="9" r="1.35" fill="#0B0B0C"></circle>
+          <circle cx="15.06" cy="12.5" r="1.3" fill="#0B0B0C" fill-opacity="0.92"></circle>
+          <circle cx="12.5" cy="15.06" r="1.25" fill="#0B0B0C" fill-opacity="0.84"></circle>
+          <circle cx="9" cy="16" r="1.2" fill="#0B0B0C" fill-opacity="0.76"></circle>
+          <circle cx="5.5" cy="15.06" r="1.15" fill="#0B0B0C" fill-opacity="0.68"></circle>
+          <circle cx="2.94" cy="12.5" r="1.1" fill="#0B0B0C" fill-opacity="0.6"></circle>
+          <circle cx="2" cy="9" r="1.05" fill="#0B0B0C" fill-opacity="0.52"></circle>
+          <circle cx="2.94" cy="5.5" r="1" fill="#0B0B0C" fill-opacity="0.44"></circle>
+          <circle cx="5.5" cy="2.94" r="0.95" fill="#0B0B0C" fill-opacity="0.36"></circle>
+          <circle cx="9" cy="2" r="0.9" fill="#0B0B0C" fill-opacity="0.3"></circle>
+          <circle cx="12.5" cy="2.94" r="0.9" fill="#0B0B0C" fill-opacity="0.26"></circle>
+          <circle cx="15.06" cy="5.5" r="0.9" fill="#0B0B0C" fill-opacity="0.22"></circle>
+          <circle cx="9" cy="9" r="1.7" fill="#0B0B0C"></circle>
+        </svg>
+        <span style="font-size: 16px; font-weight: 600; letter-spacing: -0.02em">scout</span>
+      </a>
+      <span aria-hidden="true" style="width: 1px; height: 20px; background: #E6E6E9"></span>
+      <nav aria-label="Breadcrumb" style="display: flex; align-items: center; gap: 8px; font-size: 14px">
+        <a href="Dashboard.dc.html" class="crumb" style="color: #6B6B73; text-decoration: none">Scoutings</a>
+        <span aria-hidden="true" style="color: #B4B4BB">/</span>
+        <span aria-current="page" style="font-weight: 500">New scouting</span>
+      </nav>
+    </div>
+    <ol aria-label="Steps" style="margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px">
+      <li aria-current="step" style="display: flex; align-items: center; gap: 8px; font-weight: 500">
+        <span style="width: 22px; height: 22px; border-radius: 50%; background: #0B0B0C; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600">1</span>Describe
+      </li>
+      <li aria-hidden="true" style="width: 24px; height: 1px; background: #DCDCE1"></li>
+      <li style="display: flex; align-items: center; gap: 8px; color: #6B6B73">
+        <span style="width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%; border: 1px solid #DCDCE1; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600">2</span>Confirm
+      </li>
+      <li aria-hidden="true" style="width: 24px; height: 1px; background: #DCDCE1"></li>
+      <li style="display: flex; align-items: center; gap: 8px; color: #6B6B73">
+        <span style="width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%; border: 1px solid #DCDCE1; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600">3</span>Scouting
+      </li>
+    </ol>
+    <a href="Dashboard.dc.html" class="ghost" style="height: 36px; box-sizing: border-box; padding: 0 12px; display: flex; align-items: center; border-radius: 10px; color: #3F3F46; text-decoration: none; font-size: 14px; font-weight: 500">Cancel</a>
+  </header>
+
+  <main style="position: relative; z-index: 1; flex: 1; width: 100%; max-width: 780px; margin: 0 auto; box-sizing: border-box; padding: 48px 24px 64px; display: flex; flex-direction: column; gap: 28px">
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center">
+      <div style="position: relative; width: 72px; height: 72px; margin: 22px 0 16px">
+        <div aria-hidden="true" style="position: absolute; left: -54px; top: -54px; pointer-events: none">
+          <dc-import name="Hud" px="180" labels="false" hint-size="180px,180px"></dc-import>
+        </div>
+        <div style="position: relative">
+          <dc-import name="Orb" mode="listening" px="72" hint-size="72px,72px"></dc-import>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 10px">
+        <h1 style="margin: 0; font-size: 32px; line-height: 1.15; font-weight: 600; letter-spacing: -0.03em; text-wrap: balance">Who are you looking for?</h1>
+        <p style="margin: 0; max-width: 520px; font-size: 15.5px; line-height: 1.55; color: #4B4B52; text-wrap: pretty">Describe it the way you’d tell your team. We’ll turn it into a brief and only ask for what’s missing.</p>
+      </div>
+    </div>
+
+    <div class="box" style="background: #FFFFFF; border: 1px solid #DCDCE1; border-radius: 18px; box-shadow: 0 1px 2px rgba(16,16,24,0.04), 0 12px 32px rgba(16,16,24,0.05); overflow: hidden">
+      <label for="nl" style="display: block; padding: 18px 22px 0; font-size: 12.5px; font-weight: 500; color: #6B6B73">Your description</label>
+      <textarea id="nl" value="{{text}}" sc-camel-on-change="{{onText}}" rows="6" placeholder="e.g. Looking for TikTok creators in Lima who talk about healthy cooking, 10k to 100k followers…" style="display: block; width: 100%; box-sizing: border-box; min-height: 172px; padding: 8px 22px 16px; border: 0; outline: none; resize: none; background: transparent; font-size: 17px; line-height: 1.65; letter-spacing: -0.005em"></textarea>
+      <div style="padding: 12px 12px 12px 18px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #EFEFF2; background: #FBFBFC">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0">
+          <sc-for list="{{checks}}" as="k" hint-placeholder-count="7">
+            <span class="chip" style="height: 26px; box-sizing: border-box; padding: 0 9px 0 7px; display: flex; align-items: center; gap: 5px; border-radius: 999px; border: 1px solid {{k.bd}}; background: {{k.bg}}; color: {{k.c}}; font-size: 12px; font-weight: 500">
+              <svg width="12" height="12" sc-camel-view-box="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity: {{k.iconO}}"><path d="M2.5 6.2 5 8.5l4.5-5"></path></svg>
+              <span>{{k.label}}</span>
+            </span>
+          </sc-for>
+        </div>
+        <sc-if value="{{ready}}" hint-placeholder-val="{{ true }}">
+          <a href="BriefForm.dc.html" class="btn" style="height: 40px; box-sizing: border-box; padding: 0 14px 0 16px; display: flex; align-items: center; gap: 6px; border-radius: 10px; background: #0B0B0C; color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 500">
+            <span>Turn into a brief</span>
+            <svg width="16" height="16" sc-camel-view-box="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"></path></svg>
+          </a>
+        </sc-if>
+        <sc-if value="{{empty}}" hint-placeholder-val="{{ false }}">
+          <button disabled="" style="height: 40px; padding: 0 16px; border: 0; border-radius: 10px; background: #EDEDEF; color: #6B6B73; font-size: 14px; font-weight: 500">Turn into a brief</button>
+        </sc-if>
+      </div>
+    </div>
+    <p role="status" style="margin: -12px 0 0; padding: 0 4px; font-size: 13px; line-height: 1.5; color: #6B6B73">{{caption}}</p>
+
+    <section aria-labelledby="h-ex" style="display: flex; flex-direction: column; gap: 12px; padding-top: 8px">
+      <h2 id="h-ex" style="margin: 0; font-size: 13px; font-weight: 600; color: #3F3F46">Or start from an example</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 12px">
+        <sc-for list="{{examples}}" as="ex" hint-placeholder-count="3">
+          <button class="ex" sc-camel-on-click="{{ex.pick}}" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; border: 1px solid rgba(16,16,24,0.07); border-radius: 14px; background: rgba(255,255,255,0.78); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); box-shadow: 0 1px 2px rgba(16,16,24,0.04); text-align: left; cursor: pointer">
+            <span style="font-size: 13.5px; font-weight: 600">{{ex.label}}</span>
+            <span style="font-size: 12.5px; line-height: 1.45; color: #6B6B73; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden">{{ex.text}}</span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1000}}">
+class Component extends DCLogic {
+  renderVals() {
+    var self = this;
+    var st = this.state || {};
+    var EX = [
+      ['Running in Bogotá & Medellín', 'Looking for 15 creators on TikTok and Instagram in Bogotá and Medellín who talk about running and an active lifestyle, with 20k to 300k followers, for the launch of a running shoe in March. Their audience should be 18 to 34 years old.'],
+      ['Specialty coffee in Spain', 'Specialty coffee micro-creators in Spain, Instagram only, 5k to 40k followers, for a 6-week campaign with a budget of €5,000.'],
+      ['Personal finance on YouTube', 'YouTube creators who talk about personal finance in Mexico and Colombia, over 100k subscribers, audience aged 22 to 40, who haven’t worked with other banks.']
+    ];
+    var text = st.text != null ? st.text : EX[0][1];
+    var t = text.toLowerCase();
+    var C = [
+      ['Platform', /tiktok|instagram|youtube|twitch|reels|shorts/],
+      ['Location', /bogot|medell|mexico|méxico|colombia|spain|madrid|lima|peru|chile|argentina|latam|brazil|usa|united states/],
+      ['Size', /\d+\s?k\b|followers|subscribers|micro|macro/],
+      ['Topic', /talk about|about |niche|coffee|finance|running|skincare|fashion|gaming|cooking|travel/],
+      ['Audience', /years old|aged|audience|gen z|\bage\b/],
+      ['Budget', /budget|\$|€|usd|eur\b|cop\b|mxn/],
+      ['Timing', /january|february|march|april|may|june|july|august|september|october|november|december|week|month|date|launch/]
+    ];
+    var hits = 0, missing = [];
+    var checks = C.map(function (c) {
+      var on = c[1].test(t);
+      if (on) hits++; else missing.push(c[0].toLowerCase());
+      return {
+        label: c[0],
+        bd: on ? '#0B0B0C' : '#E6E6E9',
+        bg: on ? '#0B0B0C' : '#FFFFFF',
+        c: on ? '#FFFFFF' : '#6B6B73',
+        iconO: on ? 1 : 0.35
+      };
+    });
+    var empty = text.trim().length === 0;
+    var caption = empty
+      ? 'Include platform, location, size, topic, audience, budget and timing if you have them.'
+      : (missing.length === 0
+        ? 'We have the essentials. You’ll confirm the brief in the next step.'
+        : 'We picked up ' + hits + ' of ' + C.length + '. We’ll ask for ' + missing.join(', ') + ' in the next step.');
+    return {
+      text: text,
+      onText: function (e) { self.setState({ text: e.target.value }); },
+      ready: !empty,
+      empty: empty,
+      checks: checks,
+      caption: caption,
+      examples: EX.map(function (x) { return { label: x[0], text: x[1], pick: function () { self.setState({ text: x[1] }); } }; })
+    };
+  }
+}
+</script>
+
+
+</body></html>

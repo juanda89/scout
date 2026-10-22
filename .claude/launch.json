@@ -1,0 +1,26 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "design-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/static-server.mjs",
+        "/private/tmp/claude-501/-Users-mm-Desktop-scoutting/0b68c0fc-04e7-4217-af46-2617aee474f3/scratchpad/design",
+        "8787"
+      ],
+      "port": 8787
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "-w",
+        "@scout/web"
+      ],
+      "port": 3000
+    }
+  ]
+}

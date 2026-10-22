@@ -1,0 +1,18 @@
+{
+  "name": "@scout/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.1155.0",
+    "@scout/core": "*",
+    "pg-boss": "^12.38.0",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": { "@types/node": "^24.0.0", "typescript": "^5.9.0" }
+}

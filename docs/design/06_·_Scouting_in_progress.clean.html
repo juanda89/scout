@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Scout — Scouting in progress</title>
+<script src="f4c7064c-9fff-44bf-811d-b1e5838c7593"></script>
+<script src="617b28c6-830d-4a34-9acd-510debb3aa07"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style></style>
+<style>
+body{margin:0;background:#F4F4F6;-webkit-font-smoothing:antialiased}
+a{color:#0B0B0C}a:hover{color:#0B0B0C}
+button{font:inherit;color:inherit}
+.btn{transition:background .16s ease}
+.btn:hover{background:#2B2B30 !important}
+.sec{transition:background .16s ease,border-color .16s ease}
+.sec:hover{background:#F6F6F7 !important;border-color:#CFCFD5 !important}
+.crumb:hover{color:#0B0B0C !important}
+.quiet:hover{color:#0B0B0C !important;text-decoration:underline}
+:focus-visible{outline:2px solid #0B0B0C;outline-offset:2px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.live{animation:blink 1.8s ease-in-out infinite}
+@keyframes drop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.fresh{animation:drop .6s cubic-bezier(.2,.7,.2,1) both}
+.knob{transition:transform .2s ease}
+@media (max-width: 760px){.anno{display:none !important}}
+@media (prefers-reduced-motion: reduce){.live,.fresh{animation:none}}
+</style>
+</helmet>
+<div style="position: relative; min-height: 100vh; display: flex; flex-direction: column; background: #F4F4F6; color: #0B0B0C; font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <div aria-hidden="true" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 0; pointer-events: none; overflow: hidden">
+    <dc-import name="Field" fx="0.36" fy="0.36" intensity="1.15" hint-size="100%,100%"></dc-import>
+  </div>
+
+  <header style="flex: none; min-height: 60px; box-sizing: border-box; padding: 10px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; background: rgba(255,255,255,0.7); backdrop-filter: blur(18px) saturate(1.5); -webkit-backdrop-filter: blur(18px) saturate(1.5); border-bottom: 1px solid rgba(16,16,24,0.07); position: relative; z-index: 2">
+    <div style="display: flex; align-items: center; gap: 14px; min-width: 0">
+      <a href="Dashboard.dc.html" aria-label="scout — home" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #0B0B0C">
+        <svg width="18" height="18" sc-camel-view-box="0 0 18 18" aria-hidden="true">
+          <circle cx="16" cy="9" r="1.35" fill="#0B0B0C"></circle>
+          <circle cx="15.06" cy="12.5" r="1.3" fill="#0B0B0C" fill-opacity="0.92"></circle>
+          <circle cx="12.5" cy="15.06" r="1.25" fill="#0B0B0C" fill-opacity="0.84"></circle>
+          <circle cx="9" cy="16" r="1.2" fill="#0B0B0C" fill-opacity="0.76"></circle>
+          <circle cx="5.5" cy="15.06" r="1.15" fill="#0B0B0C" fill-opacity="0.68"></circle>
+          <circle cx="2.94" cy="12.5" r="1.1" fill="#0B0B0C" fill-opacity="0.6"></circle>
+          <circle cx="2" cy="9" r="1.05" fill="#0B0B0C" fill-opacity="0.52"></circle>
+          <circle cx="2.94" cy="5.5" r="1" fill="#0B0B0C" fill-opacity="0.44"></circle>
+          <circle cx="5.5" cy="2.94" r="0.95" fill="#0B0B0C" fill-opacity="0.36"></circle>
+          <circle cx="9" cy="2" r="0.9" fill="#0B0B0C" fill-opacity="0.3"></circle>
+          <circle cx="12.5" cy="2.94" r="0.9" fill="#0B0B0C" fill-opacity="0.26"></circle>
+          <circle cx="15.06" cy="5.5" r="0.9" fill="#0B0B0C" fill-opacity="0.22"></circle>
+          <circle cx="9" cy="9" r="1.7" fill="#0B0B0C"></circle>
+        </svg>
+        <span style="font-size: 16px; font-weight: 600; letter-spacing: -0.02em">scout</span>
+      </a>
+      <span aria-hidden="true" style="width: 1px; height: 20px; background: #E6E6E9"></span>
+      <nav aria-label="Breadcrumb" style="display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px">
+        <a href="Dashboard.dc.html" class="crumb" style="color: #6B6B73; text-decoration: none">Scoutings</a>
+        <span aria-hidden="true" style="color: #B4B4BB">/</span>
+        <span aria-current="page" style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Urban running — Bogotá &amp; Medellín</span>
+      </nav>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px">
+      <a href="Brief.dc.html" class="btn" style="height: 36px; box-sizing: border-box; padding: 0 14px 0 12px; display: flex; align-items: center; gap: 6px; border-radius: 10px; background: #0B0B0C; color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 500">
+        <svg width="16" height="16" sc-camel-view-box="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9"></path></svg>
+        <span>New scouting</span>
+      </a>
+      <button aria-label="Juan’s account" style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid #E6E6E9; background: #F4F4F5; font-size: 13px; font-weight: 600; color: #3F3F46; cursor: pointer">J</button>
+    </div>
+  </header>
+
+  <main style="position: relative; z-index: 1; flex: 1; width: 100%; max-width: 1320px; margin: 0 auto; box-sizing: border-box; padding: 28px 24px 64px; display: flex; flex-direction: column; gap: 20px">
+
+    <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+          <h1 style="margin: 0; font-size: 26px; line-height: 1.2; font-weight: 600; letter-spacing: -0.025em">Urban running — Bogotá &amp; Medellín</h1>
+          <span style="height: 24px; box-sizing: border-box; padding: 0 10px 0 9px; display: flex; align-items: center; gap: 6px; border-radius: 999px; background: #0B0B0C; color: #FFFFFF; font-size: 12.5px; font-weight: 500">
+            <span class="live" aria-hidden="true" style="width: 6px; height: 6px; border-radius: 50%; background: #FFFFFF"></span>In progress
+          </span>
+        </div>
+        <span style="font-size: 13.5px; color: #6B6B73">Started today at 10:12 · TikTok, Instagram · Bogotá &amp; Medellín · 15 creators · 20k–300k followers</span>
+      </div>
+      <a href="Dashboard.dc.html" class="sec" style="height: 36px; box-sizing: border-box; padding: 0 14px; display: flex; align-items: center; border: 1px solid #DCDCE1; border-radius: 10px; background: #FFFFFF; color: #0B0B0C; text-decoration: none; font-size: 14px; font-weight: 500">Close and keep it running</a>
+    </div>
+
+    <section aria-label="Background notice" style="padding: 14px 16px 14px 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; background: rgba(255,255,255,0.78); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border: 1px solid rgba(16,16,24,0.07); border-radius: 14px; box-shadow: 0 1px 2px rgba(16,16,24,0.04)">
+      <span aria-hidden="true" style="width: 36px; height: 36px; flex: none; border-radius: 10px; background: #F1F1F3; display: flex; align-items: center; justify-content: center">
+        <svg width="18" height="18" sc-camel-view-box="0 0 20 20" fill="none" stroke="#0B0B0C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="15" height="11" rx="2"></rect><path d="m3 5.5 7 5.5 7-5.5"></path></svg>
+      </span>
+      <div style="flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 14px; font-weight: 500">You can close this tab — the scouting keeps running on our servers.</span>
+        <span style="font-size: 13px; color: #6B6B73">We’ll email you at your Gmail when the results are ready. Usually 2–3 hours.</span>
+      </div>
+      <button role="switch" aria-checked="{{notify}}" sc-camel-on-click="{{toggleNotify}}" style="height: 36px; padding: 0 4px 0 12px; display: flex; align-items: center; gap: 10px; border: 0; border-radius: 10px; background: transparent; font-size: 13.5px; font-weight: 500; cursor: pointer">
+        <span>Email me</span>
+        <span aria-hidden="true" style="width: 36px; height: 22px; box-sizing: border-box; padding: 2px; border-radius: 999px; background: {{sw.bg}}; display: flex">
+          <span class="knob" style="width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,.2); transform: translateX({{sw.x}}px)"></span>
+        </span>
+      </button>
+    </section>
+
+    <div style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px">
+
+      <div style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+        <figure style="margin: 0; position: relative; box-sizing: border-box; padding: 56px 28px 28px; display: flex; flex-direction: column; align-items: center; gap: 18px; background: rgba(255,255,255,0.78); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border: 1px solid rgba(16,16,24,0.07); border-radius: 18px; box-shadow: 0 1px 2px rgba(16,16,24,0.04)">
+          <span aria-hidden="true" style="position: absolute; top: 12px; left: 12px; width: 5px; height: 5px; border-radius: 50%; border: 1px solid #D4D4DA"></span>
+          <span aria-hidden="true" style="position: absolute; top: 12px; right: 12px; width: 5px; height: 5px; border-radius: 50%; border: 1px solid #D4D4DA"></span>
+          <span style="position: absolute; top: 22px; left: 26px; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #6B6B73">Fig. 02 — In progress</span>
+          <span style="position: absolute; top: 22px; right: 26px; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: #6B6B73">Stage {{stage.n}} / 05</span>
+
+          <div style="position: relative; width: 720px; max-width: 100%; height: 360px">
+            <div aria-hidden="true" style="position: absolute; left: calc(50% - 190px); top: -10px; pointer-events: none">
+              <dc-import name="Hud" px="380" hint-size="380px,380px"></dc-import>
+            </div>
+            <div style="position: absolute; left: calc(50% - 140px); top: 40px">
+              <dc-import name="Orb" mode="{{stage.mode}}" px="280" hint-size="280px,280px"></dc-import>
+            </div>
+            <div class="anno" aria-hidden="true">
+              <span style="position: absolute; left: 172px; top: 100px; width: 110px; height: 1px; background: #CFCFD5"></span>
+              <span style="position: absolute; left: 281px; top: 97px; width: 7px; height: 7px; border-radius: 50%; background: #0B0B0C"></span>
+              <span style="position: absolute; left: 172px; top: 260px; width: 110px; height: 1px; background: #CFCFD5"></span>
+              <span style="position: absolute; left: 281px; top: 257px; width: 7px; height: 7px; border-radius: 50%; background: #0B0B0C"></span>
+              <span style="position: absolute; left: 438px; top: 100px; width: 110px; height: 1px; background: #CFCFD5"></span>
+              <span style="position: absolute; left: 433px; top: 97px; width: 7px; height: 7px; border-radius: 50%; background: #0B0B0C"></span>
+              <span style="position: absolute; left: 438px; top: 260px; width: 110px; height: 1px; background: #CFCFD5"></span>
+              <span style="position: absolute; left: 433px; top: 257px; width: 7px; height: 7px; border-radius: 50%; background: #0B0B0C"></span>
+            </div>
+            <div class="anno" style="position: absolute; left: 0; top: 72px; width: 164px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right">
+              <span style="font-size: 12px; font-weight: 500; color: #6B6B73">Found</span>
+              <span style="font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 22px; font-weight: 500; letter-spacing: -0.02em">{{a.found}}</span>
+              <span style="font-size: 12px; color: #6B6B73">profiles on TikTok and Instagram</span>
+            </div>
+            <div class="anno" style="position: absolute; left: 0; top: 232px; width: 164px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right">
+              <span style="font-size: 12px; font-weight: 500; color: #6B6B73">Passed filters</span>
+              <span style="font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 22px; font-weight: 500; letter-spacing: -0.02em">{{a.passed}}</span>
+              <span style="font-size: 12px; color: #6B6B73">size, location and language</span>
+            </div>
+            <div class="anno" style="position: absolute; left: 556px; top: 72px; width: 164px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px">
+              <span style="font-size: 12px; font-weight: 500; color: #6B6B73">Analyzed</span>
+              <span style="font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 22px; font-weight: 500; letter-spacing: -0.02em">{{a.reviewed}}</span>
+              <span style="font-size: 12px; color: #6B6B73">{{a.reviewedSub}}</span>
+            </div>
+            <div class="anno" style="position: absolute; left: 556px; top: 232px; width: 164px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px">
+              <span style="font-size: 12px; font-weight: 500; color: #6B6B73">Strong candidates</span>
+              <span style="font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 22px; font-weight: 500; letter-spacing: -0.02em">{{a.strong}}</span>
+              <span style="font-size: 12px; color: #6B6B73">good fit with the brief</span>
+            </div>
+          </div>
+
+          <figcaption style="display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 480px; text-align: center">
+            <h2 style="margin: 0; font-size: 22px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em">{{stage.t}}</h2>
+            <p style="margin: 0; font-size: 14px; line-height: 1.55; color: #4B4B52; text-wrap: pretty">{{stage.d}}</p>
+          </figcaption>
+
+          <div style="width: 100%; box-sizing: border-box; margin-top: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; border-radius: 12px; background: rgba(11,11,12,0.035)">
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px">
+              <span style="font-size: 13px; font-weight: 500">Overall progress</span>
+              <span style="display: flex; align-items: baseline; gap: 10px">
+                <span style="font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; font-weight: 500">{{pct}}%</span>
+                <span style="font-size: 12.5px; color: #6B6B73">{{stage.eta}} left</span>
+              </span>
+            </div>
+            <div role="progressbar" aria-valuenow="{{pct}}" aria-valuemin="0" aria-valuemax="100" aria-label="Scouting progress" style="display: flex; gap: 4px">
+              <sc-for list="{{segs}}" as="sg" hint-placeholder-count="5">
+                <span style="flex: 1; height: 6px; border-radius: 3px; background: #E3E3E7; overflow: hidden">
+                  <span style="display: block; width: {{sg.w}}%; height: 6px; border-radius: 3px; background: #0B0B0C"></span>
+                </span>
+              </sc-for>
+            </div>
+          </div>
+        </figure>
+
+        <section aria-labelledby="h-stages" style="background: rgba(255,255,255,0.78); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border: 1px solid rgba(16,16,24,0.07); border-radius: 16px; box-shadow: 0 1px 2px rgba(16,16,24,0.04); overflow: hidden">
+          <div style="padding: 14px 20px; border-bottom: 1px solid #EFEFF2">
+            <h2 id="h-stages" style="margin: 0; font-size: 15px; font-weight: 600">Stages</h2>
+          </div>
+          <ol style="margin: 0; padding: 6px 12px; list-style: none; display: flex; flex-direction: column">
+            <sc-for list="{{stages}}" as="sg" hint-placeholder-count="5">
+              <li aria-current="{{sg.current}}" style="padding: 12px 8px; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 14px; align-items: center; border-radius: 10px; background: {{sg.bg}}">
+                <span style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center">
+                  <sc-if value="{{sg.done}}" hint-placeholder-val="{{ true }}">
+                    <span style="width: 22px; height: 22px; border-radius: 50%; background: #E8F5EC; color: #15803D; display: flex; align-items: center; justify-content: center">
+                      <svg width="12" height="12" sc-camel-view-box="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6.2 5 8.5l4.5-5"></path></svg>
+                    </span>
+                  </sc-if>
+                  <sc-if value="{{sg.isCur}}" hint-placeholder-val="{{ false }}">
+                    <dc-import name="Orb" mode="{{sg.mode}}" px="28" hint-size="28px,28px"></dc-import>
+                  </sc-if>
+                  <sc-if value="{{sg.pending}}" hint-placeholder-val="{{ false }}">
+                    <span style="width: 20px; height: 20px; box-sizing: border-box; border-radius: 50%; border: 1.5px dashed #C4C4CB"></span>
+                  </sc-if>
+                </span>
+                <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+                  <span style="font-size: 14px; font-weight: 500; color: {{sg.c}}">{{sg.n}} · {{sg.t}}</span>
+                  <span style="font-size: 12.5px; color: #6B6B73">{{sg.detail}}</span>
+                </span>
+                <span style="font-size: 12.5px; font-weight: 500; color: {{sg.statusC}}; white-space: nowrap">{{sg.status}}</span>
+              </li>
+            </sc-for>
+          </ol>
+        </section>
+      </div>
+
+      <aside style="flex: 1 1 320px; max-width: 400px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+
+        <section aria-labelledby="h-log" style="background: rgba(255,255,255,0.78); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border: 1px solid rgba(16,16,24,0.07); border-radius: 16px; box-shadow: 0 1px 2px rgba(16,16,24,0.04); overflow: hidden">
+          <div style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #EFEFF2">
+            <h2 id="h-log" style="margin: 0; font-size: 15px; font-weight: 600">Live activity</h2>
+            <span style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: #3F3F46">
+              <span class="live" aria-hidden="true" style="width: 6px; height: 6px; border-radius: 50%; background: #15803D"></span>Live
+            </span>
+          </div>
+          <ol aria-live="polite" style="margin: 0; padding: 4px 20px 8px; list-style: none; display: flex; flex-direction: column">
+            <sc-for list="{{log}}" as="l" hint-placeholder-count="7">
+              <li class="{{l.cls}}" style="display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 10px; padding: 10px 0; border-bottom: 1px solid #F3F3F5; opacity: {{l.o}}">
+                <span style="font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11.5px; line-height: 1.6; color: #6B6B73">{{l.time}}</span>
+                <span style="font-size: 13.5px; line-height: 1.45; text-wrap: pretty">{{l.text}}</span>
+              </li>
+            </sc-for>
+          </ol>
+        </section>
+
+        <section aria-labelledby="h-finds" style="background: rgba(255,255,255,0.78); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); border: 1px solid rgba(16,16,24,0.07); border-radius: 16px; box-shadow: 0 1px 2px rgba(16,16,24,0.04); overflow: hidden">
+          <div style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #EFEFF2">
+            <h2 id="h-finds" style="margin: 0; font-size: 15px; font-weight: 600">Early finds</h2>
+            <span style="height: 22px; box-sizing: border-box; padding: 0 9px; display: flex; align-items: center; border-radius: 999px; background: #F1F1F3; color: #3F3F46; font-size: 12px; font-weight: 500">Preliminary</span>
+          </div>
+          <sc-if value="{{hasFinds}}" hint-placeholder-val="{{ true }}">
+            <div style="padding: 6px 20px 4px; display: flex; flex-direction: column">
+              <sc-for list="{{finds}}" as="f" hint-placeholder-count="3">
+                <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #F3F3F5">
+                  <span aria-hidden="true" style="width: 34px; height: 34px; flex: none; border-radius: 50%; background: #F1F1F3; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600; color: #3F3F46">{{f.ini}}</span>
+                  <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px">
+                    <span style="font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{f.name}}</span>
+                    <span style="font-size: 12.5px; color: #6B6B73; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{f.meta}}</span>
+                  </div>
+                  <span style="min-width: 40px; height: 24px; box-sizing: border-box; padding: 0 8px; display: flex; align-items: center; justify-content: center; border-radius: 999px; border: 1px dashed #C4C4CB; font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; font-weight: 500; color: #3F3F46">~{{f.fit}}</span>
+                </div>
+              </sc-for>
+            </div>
+            <p style="margin: 0; padding: 12px 20px 16px; font-size: 12.5px; line-height: 1.5; color: #6B6B73">Final scores are calculated in stage 05 and may change.</p>
+          </sc-if>
+          <sc-if value="{{noFinds}}" hint-placeholder-val="{{ false }}">
+            <p style="margin: 0; padding: 18px 20px; font-size: 13.5px; line-height: 1.5; color: #6B6B73">Creators will show up here as soon as we start analyzing profiles.</p>
+          </sc-if>
+        </section>
+
+        <button class="quiet" style="align-self: flex-start; padding: 4px 4px; border: 0; background: transparent; color: #6B6B73; font-size: 13px; cursor: pointer">Cancel scouting</button>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;stage&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;min&quot;:1,&quot;max&quot;:5,&quot;section&quot;:&quot;State&quot;},&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1300}}">
+class Component extends DCLogic {
+  componentDidMount() {
+    var self = this;
+    this._iv = setInterval(function () {
+      var t = (self.state && self.state.tick) || 0;
+      self.setState({ tick: t + 1 });
+    }, 2400);
+  }
+
+  componentWillUnmount() {
+    if (this._iv) clearInterval(this._iv);
+  }
+
+  fmt(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+  clock(min) {
+    var h = 10 + Math.floor(min / 60), m = min % 60;
+    return h + ':' + (m < 10 ? '0' : '') + m;
+  }
+
+  renderVals() {
+    var self = this;
+    var st = this.state || {};
+    var tick = st.tick || 0;
+    var s = Math.max(1, Math.min(5, parseInt(this.props.stage, 10) || 3));
+
+    var STG = [
+      { n: '01', t: 'Interpreting the brief', d: 'Turning your description into search criteria and filters.', mode: 'listening', eta: '~2 h 50 min', base: 12, doneDetail: '11 criteria · 10:12–10:15' },
+      { n: '02', t: 'Finding candidates', d: 'Searching TikTok and Instagram for profiles about running and an active lifestyle in Bogotá and Medellín.', mode: 'searching', eta: '~2 h 20 min', base: 15, doneDetail: '4,120 profiles found · 10:15–10:41' },
+      { n: '03', t: 'Analyzing content', d: 'Reviewing posts, topics and posting frequency for every profile that passed the filters.', mode: 'working', eta: '~1 h 40 min', base: 41, doneDetail: '1,346 profiles analyzed · 10:41–11:52' },
+      { n: '04', t: 'Evaluating audiences', d: 'Cross-checking each candidate’s audience location, age and authenticity.', mode: 'connecting', eta: '~45 min', base: 88, doneDetail: '96 strong candidates · 11:52–12:30' },
+      { n: '05', t: 'Scoring fit', d: 'Scoring every creator against your brief and ranking the results.', mode: 'solving', eta: '~10 min', base: 121, doneDetail: '' }
+    ];
+    var POOL = [
+      ['Reading your description', 'Criterion: TikTok and Instagram', 'Criterion: Bogotá and Medellín', 'Criterion: 20k–300k followers', 'Criterion: audience aged 18–34', 'Adding related topics: trail, 10K, half marathon'],
+      ['Searching #runningbogota on TikTok', '312 new profiles on Instagram', 'Exploring accounts that follow Medellín races', 'Widening the search: “jogging”, “10K”, “half marathon”', 'Filtering by language: Spanish', 'Dropping accounts inactive for 60+ days'],
+      ['Reviewing the last 30 videos from @corre.conlaura', '@trotabogota — 82% of their audience is in Colombia', 'Dropped @gymfit.co — mostly gym content, not running', '@mafe.kilometros posts about running 4 times a week', 'Reading comments on @andrea.corre to estimate audience age', 'Dropped @runlatam — 70% of their audience is outside Colombia', '@sebas.trail — 7.9% engagement over the last 90 days', 'Reviewing 42 reels from @medellincorre', '@caro.10k added to strong candidates'],
+      ['Cross-checking audience location for @trotabogota', '@caro.10k — 64% of their audience is 18–34', 'Checking follower authenticity for @runmedellin', 'Dropped @kmsbogota — 31% suspicious followers', '@mafe.kilometros — 77% of their audience is in Colombia'],
+      ['Scoring @caro.10k against the brief', 'Adjusting for budget and estimated rates', 'Ranking 96 candidates by fit', 'Picking the top 15 plus 10 alternates']
+    ];
+
+    var reviewed = Math.min(1346, 512 + tick * 3);
+    var within = s === 3 ? reviewed / 1346 : Math.min(0.9, 0.42 + (tick % 40) / 100);
+    var pct = Math.round(((s - 1) + within) / 5 * 100);
+
+    var a = {
+      found: s < 2 ? '—' : (s === 2 ? this.fmt(2600 + tick * 13) : '4,120'),
+      passed: s < 3 ? '—' : '1,346',
+      reviewed: s < 3 ? '—' : (s === 3 ? this.fmt(reviewed) : '1,346'),
+      reviewedSub: s < 3 ? 'pending' : (s === 3 ? 'of 1,346 profiles' : 'all profiles'),
+      strong: s < 3 ? '—' : (s === 3 ? String(87 + Math.floor(tick / 2)) : '96')
+    };
+
+    var curDetail = [
+      'Building criteria from your description',
+      this.fmt(2600 + tick * 13) + ' profiles found so far',
+      this.fmt(reviewed) + ' of 1,346 profiles',
+      'Checking audiences of 96 candidates',
+      'Ranking candidates by fit'
+    ];
+
+    var stages = STG.map(function (g, i) {
+      var k = i + 1, done = k < s, curr = k === s;
+      return {
+        n: g.n, t: g.t, mode: g.mode,
+        done: done, isCur: curr, pending: k > s,
+        detail: done ? g.doneDetail : (curr ? curDetail[i] : (k === s + 1 ? 'Up next' : 'Pending')),
+        status: done ? 'Done' : (curr ? 'In progress' : ''),
+        statusC: done ? '#14692F' : '#0B0B0C',
+        current: curr ? 'step' : 'false',
+        c: k > s ? '#6B6B73' : '#0B0B0C',
+        bg: curr ? 'rgba(11,11,12,0.04)' : 'transparent'
+      };
+    });
+
+    var segs = STG.map(function (g, i) {
+      var k = i + 1;
+      return { w: k < s ? 100 : (k === s ? Math.round(within * 100) : 0) };
+    });
+
+    var pool = POOL[s - 1], base = STG[s - 1].base, log = [];
+    for (var i = 0; i < 7; i++) {
+      var j = tick + 6 - i;
+      log.push({
+        time: this.clock(base + Math.floor(j * 0.5)),
+        text: pool[((j % pool.length) + pool.length) % pool.length],
+        o: (1 - i * 0.1).toFixed(2),
+        cls: i === 0 ? 'fresh' : ''
+      });
+    }
+
+    var F = [['Carolina Ríos', 'TikTok · 86K · @caro.10k', 91], ['Mafe Gómez', 'Instagram · 42K · @mafe.kilometros', 88], ['Sebastián Mora', 'Instagram · 61K · @sebas.trail', 84]];
+    var finds = F.map(function (f) {
+      var p = f[0].split(' ');
+      return { name: f[0], meta: f[1], fit: f[2], ini: (p[0][0] + p[1][0]).toUpperCase() };
+    });
+
+    var notify = st.notify !== false;
+    return {
+      stage: STG[s - 1],
+      stages: stages,
+      segs: segs,
+      a: a,
+      pct: pct,
+      log: log,
+      finds: finds,
+      hasFinds: s >= 3,
+      noFinds: s < 3,
+      notify: notify,
+      sw: { bg: notify ? '#0B0B0C' : '#D4D4DA', x: notify ? 14 : 0 },
+      toggleNotify: function () { self.setState({ notify: !notify }); }
+    };
+  }
+}
+</script>
+
+
+</body></html>

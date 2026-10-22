@@ -1,8 +1,21 @@
-# scoutting
+# Scout
 
-Prototipo de scouting determinista de creadoras para agencias de influencers. La IA extrae **hechos con evidencia** (claims); un motor de reglas en código decide PASS / FAIL / UNKNOWN. El diseño completo está en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
+Scouting determinista de creadoras para agencias de influencers. La IA extrae **hechos con evidencia** (claims); un motor de reglas en código decide PASS / FAIL / UNKNOWN y un fit score por componentes. Arquitectura en [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md), plan de producción en [docs/PLAN_PRODUCCION.md](docs/PLAN_PRODUCCION.md), diseño de pantallas en `docs/design/`.
 
-## Qué hay
+## Monorepo
+
+| Paquete | Qué es | Cómo se corre |
+|---|---|---|
+| `packages/core` | Motor: registro de predicados, claims, extractores, reglas, proveedores, pipeline de scouting, cola | `npm run scout -- <comando>` |
+| `packages/db` | Migraciones SQL | las aplica `scout db migrate` o el worker al arrancar |
+| `apps/worker` | Consume la cola (pg-boss) y ejecuta las 5 etapas de cada scouting; envía el email de resultados (SES) | `npm run dev -w @scout/worker` |
+| `apps/web` | Producto: Next.js 16, Auth.js (Google o sign-in de desarrollo), las seis pantallas del diseño, SSE de progreso, export CSV | `npm run dev -w @scout/web` → http://localhost:3000 |
+
+Flujo de producto: **Describe** (texto libre, chips de lo detectado) → **Confirm the brief** (campos detectados, requeridos y sugeridos, figura con la descripción marcada) → **Create scouting** (se encola) → **Scouting in progress** (Orb por etapa, contadores, actividad en vivo, early finds) → **Results** (ranking por fit, panel con cómo se construye el score, pros y contras, shortlist, CSV).
+
+Variables de entorno de la web en `.env.example` (`AUTH_SECRET`, `ALLOWED_EMAILS`/`ALLOWED_DOMAIN`, `GOOGLE_CLIENT_ID/SECRET`). Sin credenciales de Google aparece un sign-in de desarrollo que acepta los correos permitidos.
+
+## Motor (packages/core)
 
 | Capa | Archivo | Qué hace |
 |---|---|---|

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Scout — Sign in</title>
+<script src="00ae748e-43b6-4fb9-a37f-46efcdb37d25"></script>
+<script src="73d2569b-a50f-465f-b2ad-403a4104fee1"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style></style>
+<style>
+body{margin:0;background:#F4F4F6;-webkit-font-smoothing:antialiased}
+a{color:#0B0B0C}a:hover{color:#4B4B52}
+.gsi{transition:background-color .218s,border-color .218s,box-shadow .218s}
+.gsi:hover{background:#F8FAFF !important;box-shadow:0 1px 2px 0 rgba(60,64,67,.30),0 1px 3px 1px rgba(60,64,67,.15) !important}
+.gsi:active{background:#EDF2FC !important}
+.gsi:focus-visible{outline:2px solid #0B57D0;outline-offset:2px}
+:focus-visible{outline:2px solid #0B0B0C;outline-offset:3px}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.rise{animation:rise .9s cubic-bezier(.2,.7,.2,1) .35s both}
+@keyframes bloom{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+.bloom{animation:bloom 1.2s cubic-bezier(.2,.7,.2,1) both}
+@media (prefers-reduced-motion: reduce){.rise,.bloom{animation:none}}
+</style>
+</helmet>
+<div style="position: relative; min-height: 100vh; box-sizing: border-box; padding: 40px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #F4F4F6; color: #0B0B0C; font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; overflow: hidden">
+  <div aria-hidden="true" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 0; pointer-events: none">
+    <dc-import name="Field" fx="0.5" fy="0.34" intensity="1.1" hint-size="100%,100%"></dc-import>
+  </div>
+
+  <main style="position: relative; z-index: 1; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; gap: 4px">
+    <div class="bloom" style="position: relative; width: 300px; height: 300px; display: flex; align-items: center; justify-content: center">
+      <div aria-hidden="true" style="position: absolute; left: 0; top: 0">
+        <dc-import name="Hud" px="300" hint-size="300px,300px"></dc-import>
+      </div>
+      <div style="position: relative">
+        <dc-import name="Orb" mode="breathing" px="112" speed="0.7" hint-size="112px,112px"></dc-import>
+      </div>
+    </div>
+
+    <section class="rise" aria-labelledby="h-sign" style="width: 100%; box-sizing: border-box; padding: 28px 32px 26px; display: flex; flex-direction: column; align-items: center; gap: 22px; background: rgba(255,255,255,0.78); backdrop-filter: blur(18px) saturate(1.5); -webkit-backdrop-filter: blur(18px) saturate(1.5); border: 1px solid rgba(16,16,24,0.07); border-radius: 20px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(16,16,24,0.04), 0 16px 48px rgba(16,16,24,0.07)">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <svg width="18" height="18" sc-camel-view-box="0 0 18 18" aria-hidden="true">
+            <circle cx="16" cy="9" r="1.35" fill="#0B0B0C"></circle>
+            <circle cx="15.06" cy="12.5" r="1.3" fill="#0B0B0C" fill-opacity="0.92"></circle>
+            <circle cx="12.5" cy="15.06" r="1.25" fill="#0B0B0C" fill-opacity="0.84"></circle>
+            <circle cx="9" cy="16" r="1.2" fill="#0B0B0C" fill-opacity="0.76"></circle>
+            <circle cx="5.5" cy="15.06" r="1.15" fill="#0B0B0C" fill-opacity="0.68"></circle>
+            <circle cx="2.94" cy="12.5" r="1.1" fill="#0B0B0C" fill-opacity="0.6"></circle>
+            <circle cx="2" cy="9" r="1.05" fill="#0B0B0C" fill-opacity="0.52"></circle>
+            <circle cx="2.94" cy="5.5" r="1" fill="#0B0B0C" fill-opacity="0.44"></circle>
+            <circle cx="5.5" cy="2.94" r="0.95" fill="#0B0B0C" fill-opacity="0.36"></circle>
+            <circle cx="9" cy="2" r="0.9" fill="#0B0B0C" fill-opacity="0.3"></circle>
+            <circle cx="12.5" cy="2.94" r="0.9" fill="#0B0B0C" fill-opacity="0.26"></circle>
+            <circle cx="15.06" cy="5.5" r="0.9" fill="#0B0B0C" fill-opacity="0.22"></circle>
+            <circle cx="9" cy="9" r="1.7" fill="#0B0B0C"></circle>
+          </svg>
+          <span style="font-size: 18px; font-weight: 600; letter-spacing: -0.02em">scout</span>
+        </div>
+        <h1 id="h-sign" style="margin: 0; font-size: 22px; line-height: 1.25; font-weight: 600; letter-spacing: -0.02em">Sign in</h1>
+        <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #4B4B52">Find the creators that fit your brief.</p>
+      </div>
+      <a href="Dashboard.dc.html" class="gsi" style="width: 100%; box-sizing: border-box; height: 40px; padding: 0 12px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid #747775; border-radius: 20px; background: #FFFFFF; color: #1F1F1F; text-decoration: none; font-family: 'Roboto', Arial, sans-serif; font-size: 14px; font-weight: 500; line-height: 20px; letter-spacing: 0.25px">
+        <span aria-hidden="true" title="Place Google’s official “G” logo here (20×20)" style="width: 20px; height: 20px; flex: none; box-sizing: border-box; border: 1px dashed #A8ABAF; border-radius: 4px"></span>
+        <span>Continue with Google</span>
+      </a>
+      <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #6B6B73; text-align: center; text-wrap: pretty">By continuing you agree to the <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.</p>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+
+
+</body></html>
