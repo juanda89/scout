@@ -190,6 +190,21 @@ export const SEED_PREDICATES: PredicateInput[] = [
     },
   },
   {
+    key: "child.age_mention",
+    label: "Edad de un hijo o hija (mención explícita o pista)",
+    tier: "micro",
+    value_type: "object",
+    value_schema: { type: "object", properties: { amount: { type: "number" }, unit: { type: "string", enum: ["months", "years", "weeks"] }, min_months: { type: "number" }, max_months: { type: "number" } } },
+    temporal_kind: "point_in_time",
+    cardinality: "many",
+    extraction_spec: {
+      provider: "claude",
+      modalities: ["caption", "transcript", "bio"],
+      claude: { instructions: "Edad de un hijo o hija de la creadora. Explícita: {\"amount\": N, \"unit\": \"months\"|\"years\"|\"weeks\"} (\"mi hija de 2 años\", \"cumplió 8 meses\"). Si no hay número pero sí una pista clara, devuelve un rango en meses {\"min_months\", \"max_months\"}: recién nacido 0-3; bebé 0-12; gatea o primeros pasos 6-18; pañales o tetero 0-36; jardín o preescolar 36-72; primaria o colegio 72-144; adolescente 144-216. Solo hijos propios de la creadora, no sobrinos ni alumnos." },
+    },
+    derivations: [{ name: "child.age_months", fn: "months_since_observed_plus_age", params: {} }],
+  },
+  {
     key: "account.kind",
     label: "Tipo de cuenta: creadora, negocio o medio",
     tier: "macro",

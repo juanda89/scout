@@ -83,6 +83,9 @@ especificación determinista. Reglas:
    y con instructions que digan explícitamente cuándo responder "ninguna" (ej. "Si la publicación no trata de comida, responde ninguna"): un partido llamado
    "Clásico Paisa" no es comida típica;
    "noul" para booleanos (sin choices); "score" con levels ordenados. provider "claude" si hay que extraer un valor libre o estructurado (objeto con required_fields, número, fecha).
+   Edad de hijos: usa SIEMPRE el predicado existente child.age_mention (no crees otro). Acepta edad explícita {"amount","unit"} y también pistas
+   cualitativas como rango {"min_months","max_months"} ("mi bebé" 0-12, "recién nacido" 0-3, "ya gatea/primeros pasos" 6-18, "pañales" 0-36,
+   "jardín/preescolar" 36-72, "primaria/colegio" 72-144); la regla va sobre la derivación child.age_months con between en meses y min_evidence 1 (una edad clara basta).
    En value_schema rellena solo lo que aplica: enum_values para enum, min/max para number, required_fields para object.
 6. Lo que no esté claro en el brief va en open_questions, no se inventa.
 Devuelve solo el objeto pedido.`;

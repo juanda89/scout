@@ -57,7 +57,8 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
   const macro = registry.filter((p) => p.tier === "macro");
   const pmap = new Map(registry.map((p) => [p.key, p]));
   const hardSpec: BriefSpec = { ...ctx.spec, requirements: ctx.spec.requirements.filter((r) => r.hard) };
-  const hardPreds = requiredPredicates(hardSpec, pmap).filter((p) => p.tier === "micro" && p.extraction_spec.provider === "jev");
+  // Predicados de los requisitos duros: Jev (centavos) y también los que extrae el LLM (edad de los hijos, marcas): sin ellos no hay verificación.
+  const hardPreds = requiredPredicates(hardSpec, pmap).filter((p) => p.tier === "micro" && ["jev", "claude"].includes(p.extraction_spec.provider));
   const canVerify = hardSpec.requirements.length > 0 && hardPreds.length > 0;
   const engineCtx = { now: new Date(), predicates: pmap, defaultMinConfidence: config.defaultMinConfidence, jevMinConfidence: config.jevMinConfidence };
   const strategies: StrategyRun[] = [];
@@ -138,6 +139,8 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
       catch (e) { failures++; ctx.log(`clasificación fallida @${c.handle}: ${e instanceof Error ? e.message.slice(0, 120) : e}`); }
     }
     if (failures) await ctx.ev(`${failures} profiles could not be classified right now (provider errors); they stay in the index for the next run`, "warn");
+    const newIds = new Set((await db().query(`SELECT id FROM creators WHERE platform = ANY($1) AND lower(handle) = ANY($2)`, [ctx.platforms, handles])).rows.map((r) => r.id as string));
+    await cityRescue(newIds, 10);
     const after = await passingIds();
     const newPassing = after.filter((id) => !before.has(id));
     const v = await verify(newPassing);
@@ -269,23 +272,29 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
     if (existing.length) await ctx.ev(`${existing.length} profiles already in the index pass the filters; ${verified.size} ${canVerify ? "verified on the brief" : "matching"} (${v.costUsd.toFixed(2)} USD)`);
   }
 
-  /* 0b · Rescate por ciudad: perfiles que pasan todo menos la ciudad (desconocida) y publican del tema: un reel y sus comentarios suelen situarlos. */
-  if (ctx.geo.cities.length && ctx.spec.macro_filters["location.city"] && deepEnabled()) {
+  /* 0b · Rescate por ciudad: perfiles que pasan todo menos la ciudad (desconocida) y publican del tema: un reel y sus comentarios suelen situarlos.
+        Se corre al inicio sobre el índice y después de cada lote nuevo (la ciudad es la mayor fuga del embudo: en Bogotá, 42 de 71 perfiles del país no la declaraban). */
+  const rescued = new Set<string>();
+  const cityRescue = async (onlyIds: Set<string> | null, limit: number) => {
+    if (!ctx.geo.cities.length || !ctx.spec.macro_filters["location.city"] || !deepEnabled()) return 0;
     const noCity = { ...ctx.spec.macro_filters }; delete noCity["location.city"];
     const passingNow = new Set(await passingIds());
     const prim = ((ctx.spec.macro_filters["content.category"]?.any_of as string[] | undefined) ?? []).slice(0, 1);
     const cands = (await macroCandidates(noCity, { platforms: ctx.platforms }))
-      .filter((c) => !passingNow.has(c.id) && !(c.facets["location.city"] as string[] | undefined)?.length && ((c.facets["content.category"] as string[] | undefined) ?? []).some((x) => prim.includes(x)))
-      .slice(0, 15);
-    let rescued = 0;
+      .filter((c) => !passingNow.has(c.id) && !rescued.has(c.id) && (!onlyIds || onlyIds.has(c.id)) && !(c.facets["location.city"] as string[] | undefined)?.length && ((c.facets["content.category"] as string[] | undefined) ?? []).some((x) => prim.includes(x)))
+      .slice(0, limit);
+    let placed = 0;
     for (const c of cands) {
       if (deepSpent >= deepBudgetUsd()) break;
+      rescued.add(c.id);
       const d = await deepVerify(c.id, c.handle, hardPreds, { geo: ctx.geo, log: ctx.log });
       deepSpent += d.costUsd; cost += d.costUsd;
-      if (d.city) { await refreshFacets(c.id); const now = new Set(await passingIds()); if (now.has(c.id)) { rescued++; const v = await verify([c.id]); cost += v.costUsd; await ctx.ev(`@${c.handle} placed in ${d.city} by a reel and its comments${v.added ? " and verified on the brief" : ""}`, v.added ? "find" : "info"); } }
+      if (d.city) { await refreshFacets(c.id); const now = new Set(await passingIds()); if (now.has(c.id)) { placed++; const v = await verify([c.id]); cost += v.costUsd; await ctx.ev(`@${c.handle} placed in ${d.city} by a reel and its comments${v.added ? " and verified on the brief" : ""}`, v.added ? "find" : "info"); } }
     }
-    if (cands.length) ctx.log(`rescate por ciudad: ${cands.length} candidatas, ${rescued} situadas en la zona`);
-  }
+    if (cands.length) ctx.log(`rescate por ciudad: ${cands.length} candidatas, ${placed} situadas en la zona`);
+    return placed;
+  };
+  await cityRescue(null, 15);
 
   const base: CreatorSearchInput = { countriesAlpha3: ctx.geo.countries.map((c) => A2_TO_A3[c] ?? c), followersMin, followersMax, language: LANG3[ctx.fields.language] ?? null, activeWithinDays: 90 };
   const geoTags = geoTerms.map((t) => t.replace(/\s+/g, "")).filter((t) => t.length >= 4).slice(0, 20);

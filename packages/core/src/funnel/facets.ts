@@ -8,9 +8,15 @@ import { normCity } from "../scouting/geo.js";
 /** Recalcula la fila de creator_facets de una creadora a partir de sus claims macro vigentes. */
 export async function refreshFacets(creatorId: string): Promise<Record<string, unknown[]>> {
   const macro = await listPredicates("macro");
-  const floor = new Map(macro.map((p) => [p.key, p.extraction_spec.provider === "jev" ? config.jevMinConfidence : config.defaultMinConfidence]));
+  // Umbral por quién produjo el claim: Jev y la escucha de reels calibran prudente (0,7); el resto, el general (0,85).
+  const byPred = new Map(macro.map((p) => [p.key, p.extraction_spec.provider === "jev" ? config.jevMinConfidence : config.defaultMinConfidence]));
+  const floorOf = (c: { predicate_key: string; extractor: unknown }) => {
+    const prov = (c.extractor as { provider?: string } | null)?.provider;
+    if (prov === "jev" || prov === "deep_reel") return config.jevMinConfidence;
+    return byPred.get(c.predicate_key) ?? config.defaultMinConfidence;
+  };
   const claims = vigentes(await listClaims(creatorId, macro.map((p) => p.key)), { now: new Date(), minConfidence: 0.5 })
-    .filter((c) => c.polarity === "affirms" && Number(c.confidence) >= (floor.get(c.predicate_key) ?? config.defaultMinConfidence))
+    .filter((c) => c.polarity === "affirms" && Number(c.confidence) >= floorOf(c))
     .sort(byPriority);
   const facets: Record<string, unknown[]> = {};
   for (const p of macro) {

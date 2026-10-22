@@ -9,7 +9,9 @@ export function monthsBetween(from: Date, to: Date): number {
 
 function ageMentionToMonths(value: unknown): number | null {
   if (typeof value !== "object" || value === null) return null;
-  const v = value as { amount?: unknown; unit?: unknown };
+  const v = value as { amount?: unknown; unit?: unknown; min_months?: unknown; max_months?: unknown };
+  // Pistas cualitativas ("mi bebé", "ya gatea", "entró al jardín") llegan como rango en meses: se usa el punto medio.
+  if (typeof v.min_months === "number" && typeof v.max_months === "number") return Math.round((v.min_months + v.max_months) / 2);
   if (typeof v.amount !== "number") return null;
   if (v.unit === "months") return v.amount;
   if (v.unit === "years") return v.amount * 12;

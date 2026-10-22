@@ -163,7 +163,9 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
     await setStage(scoutingId, 4, "running");
     // Los informes de audiencia cuestan 0,40 USD cada uno: solo para las mejores por fit preliminar (el doble de las pedidas, mínimo 6), con tope en dólares.
     const byPrelim = new Map(prelimAll.map((r, idx) => [r.creator_id, idx]));
-    const needAudience = prelim.map((x) => x.c).sort((a, b) => (byPrelim.get(a.id) ?? 1e9) - (byPrelim.get(b.id) ?? 1e9));
+    // Con requisitos duros, solo las verificadas llegan a la lista: no se paga audiencia de quien no va a aparecer.
+    const hasHardReq = spec.requirements.some((r) => r.hard);
+    const needAudience = prelim.filter((x) => !hasHardReq || x.e.overall === "PASS").map((x) => x.c).sort((a, b) => (byPrelim.get(a.id) ?? 1e9) - (byPrelim.get(b.id) ?? 1e9));
     const perReport = 10 * Number(process.env.CREATORDB_USD_PER_CREDIT ?? 0.04);
     const maxAud = Math.max(1, Math.min(Math.floor(LIMITS.audienceMaxUsd / perReport), Math.max(6, wanted * 2)));
     if (needAudience.length > maxAud) await ev(4, `Checking audiences for the top ${maxAud} of ${needAudience.length} candidates (${perReport.toFixed(2)} USD per report)`);
@@ -235,8 +237,23 @@ export function applyFieldsToSpec(spec: BriefSpec, s: Scouting, geo?: GeoScope):
   if (geo && (geo.level === "city" || geo.level === "region") && geo.cities.length) mf["location.city"] = { any_of: [...new Set(geo.cities.map(normCity))].filter(Boolean) };
   mf["account.kind"] = { none_of: ["business", "media"] };
   mf["brand_safety.flags"] = { none_of: ["adult", "political_extreme", "hate", "violence"] };
+  // Cualquier otro filtro que el compilador haya puesto en macro (gender, life_stage…) pasa a requisito duro: se verifica con evidencia
+  // en vez de excluir por no tener la faceta. En Bogotá, exigir la faceta "madre" en la bio dejó 4 de 7 mamás reales fuera antes de mirar sus posts.
+  const CORE = new Set(["followers", "language.primary", "location.country", "location.city", "account.kind", "brand_safety.flags", "content.category"]);
+  const requirements = [...spec.requirements];
+  for (const [key, rule] of Object.entries(mf)) {
+    if (CORE.has(key)) continue;
+    delete mf[key];
+    if (!requirements.some((r) => r.predicate === key)) {
+      // Los filtros macro van como {any_of: [...]}; las reglas de requisito como {op, value}.
+      const first = Object.entries(rule)[0];
+      if (!first) continue;
+      const [op, value] = first as [(typeof requirements)[number]["rule"]["op"], unknown];
+      requirements.push({ id: `macro_${key.replace(/\W+/g, "_")}`, predicate: key, rule: { op, value } as (typeof requirements)[number]["rule"], hard: true, match: "any", min_evidence: 1, max_evidence_age_days: 365, rationale: `Del brief: ${key} ${op} ${JSON.stringify(value)}` });
+    }
+  }
   const wanted = f.creators_wanted ?? 15;
-  return { ...spec, macro_filters: mf, budget: { max_candidates_deep: Math.min(300, Math.max(40, wanted * 10)), max_usd: Math.max(spec.budget.max_usd, 60) } };
+  return { ...spec, macro_filters: mf, requirements, budget: { max_candidates_deep: Math.min(300, Math.max(40, wanted * 10)), max_usd: Math.max(spec.budget.max_usd, 60) } };
 }
 
 /** Explica, con números, qué filtro dejó fuera a la mayoría del pool. */

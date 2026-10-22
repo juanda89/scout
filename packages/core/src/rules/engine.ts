@@ -77,13 +77,21 @@ export function requirementMinConfidence(req: Requirement, ctx: EngineContext): 
   return ctx.defaultMinConfidence;
 }
 
+/** Umbral efectivo de un claim: el del requisito, salvo que lo haya producido un extractor prudente (Jev, escucha de reels), que usa el suyo. */
+export function claimMinConfidence(claim: Claim, req: Requirement, ctx: EngineContext): number {
+  const prov = (claim.extractor as { provider?: string } | null)?.provider;
+  if ((prov === "jev" || prov === "deep_reel") && ctx.jevMinConfidence != null && req.min_confidence == null) return ctx.jevMinConfidence;
+  return requirementMinConfidence(req, ctx);
+}
+
 export function evaluateRequirement(req: Requirement, allClaims: Claim[], ctx: EngineContext): RequirementResult {
   const minConfidence = requirementMinConfidence(req, ctx);
   const relevantKeys = req.rule.derived
     ? new Set(predicatesProviding(req.rule.derived, ctx.predicates).map((p) => p.key))
     : new Set([req.predicate]);
   const scoped = allClaims.filter((c) => relevantKeys.has(c.predicate_key));
-  const live = vigentes(scoped, { now: ctx.now, minConfidence, maxEvidenceAgeDays: req.max_evidence_age_days }).sort(byPriority);
+  const live = vigentes(scoped, { now: ctx.now, minConfidence: 0.5, maxEvidenceAgeDays: req.max_evidence_age_days })
+    .filter((c) => Number(c.confidence) >= claimMinConfidence(c, req, ctx) || c.status === "human_confirmed").sort(byPriority);
 
   const base = { requirement_id: req.id, claim_ids: [] as string[], values: [] as unknown[] };
 
@@ -124,8 +132,8 @@ export function evaluateRequirement(req: Requirement, allClaims: Claim[], ctx: E
   if (n < req.min_evidence) {
     // Evidencia de apoyo: con al menos una evidencia fuerte, los claims hasta 0,1 por debajo del umbral
     // completan el conteo (un 0,83 confirma lo que un 0,99 ya dijo; sin el fuerte, siguen sin contar).
-    const supportFloor = Math.max(0.5, minConfidence - 0.1);
-    const support = vigentes(scoped, { now: ctx.now, minConfidence: supportFloor, maxEvidenceAgeDays: req.max_evidence_age_days }).sort(byPriority).filter((c) => c.polarity === "affirms");
+    const support = vigentes(scoped, { now: ctx.now, minConfidence: 0.5, maxEvidenceAgeDays: req.max_evidence_age_days })
+      .filter((c) => Number(c.confidence) >= Math.max(0.5, claimMinConfidence(c, req, ctx) - 0.1)).sort(byPriority).filter((c) => c.polarity === "affirms");
     const supPool = cardinality === "one" && !req.rule.derived ? candidateValues(req, support, ctx).slice(0, 1) : candidateValues(req, support, ctx);
     const supSat = supPool.filter((c) => testRule(req.rule, c.value));
     const nS = independentEvidenceCount(supSat.map((c) => c.claim));

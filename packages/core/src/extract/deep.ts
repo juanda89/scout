@@ -80,6 +80,9 @@ export async function deepVerify(creatorId: string, handle: string, predicates: 
       for (const c of r.data.claims) {
         if (!known.has(c.predicate_key) || c.confidence < 0.6) continue;
         let value: unknown; try { value = JSON.parse(c.value_json); } catch { value = c.value_json; }
+        // Un reel que no muestra el tema no es evidencia en contra (ese reel va de otra cosa): ni "false" ni "denies" se guardan.
+        // Negar algo exige una declaración explícita ("no tengo hijos"), y eso lo decide la etapa de contenido sobre todos los posts, no un reel suelto.
+        if (value === false || c.polarity === "denies") continue;
         claims.push({ creator_id: creatorId, predicate_key: c.predicate_key, predicate_version: predicates.find((x) => x.key === c.predicate_key)?.version ?? 1, value, polarity: c.polarity, observed_at: p.posted_at ? new Date(p.posted_at) : new Date(), evidence_content_id: contentId, evidence_span: `reel: ${c.evidence_span.slice(0, 280)}`, evidence_modality: "transcript", confidence: Math.min(0.97, c.confidence), extractor: { provider: "deep_reel", model: r.model } });
       }
       if (r.data.city.value && r.data.city.confidence >= 0.7) {
