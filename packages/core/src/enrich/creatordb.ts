@@ -122,8 +122,20 @@ export interface CreatorSearchInput {
   followersMax?: number | null;
   /** ISO 639-3: spa, eng, por */
   language?: string | null;
+  /** Hashtags usados en captions (cualquiera de la lista). */
   hashtags?: string[];
+  /** Nombres de nicho tal como los devuelve /instagram/niches (el índice es sensible a mayúsculas). */
   niches?: string[];
+  /** Ids de nicho (`id_food_All`): se envían como keywords `niches|<id>`; es la forma que de verdad filtra. */
+  nicheIds?: string[];
+  /** Cuentas que Instagram recomienda junto a estas (handles): el "similares" del índice. */
+  relatedTo?: string[];
+  /** Cuentas etiquetadas por el creador (handles de hubs: festivales, restaurantes, guías). */
+  tagged?: string[];
+  /** Categoría profesional de la cuenta (lista cerrada de Instagram, sensible a mayúsculas). */
+  categories?: string[];
+  /** Solo cuentas con publicación en los últimos N días. */
+  activeWithinDays?: number;
   pageSize?: number;
   offset?: number;
 }
@@ -140,6 +152,11 @@ export async function searchCreators(i: CreatorSearchInput): Promise<CreatorSear
   if (i.language) filters.push({ filterName: "mainLanguage", op: "=", value: i.language });
   if (i.hashtags?.length) filters.push({ filterName: "hashtags", op: "in", value: i.hashtags.slice(0, 100) });
   if (i.niches?.length) filters.push({ filterName: "niches", op: "in", value: i.niches.slice(0, 100) });
+  if (i.nicheIds?.length) filters.push({ filterName: "keywords", op: "in", value: i.nicheIds.slice(0, 100).map((id) => (id.startsWith("niches|") ? id : `niches|${id}`)) });
+  if (i.relatedTo?.length) filters.push({ filterName: "relatedCreator", op: "in", value: i.relatedTo.slice(0, 100) });
+  if (i.tagged?.length) filters.push({ filterName: "taggedCreator", op: "in", value: i.tagged.slice(0, 100) });
+  if (i.categories?.length) filters.push({ filterName: "category", op: "in", value: i.categories.slice(0, 100) });
+  if (i.activeWithinDays) filters.push({ filterName: "lastPublishTime", op: ">", value: Date.now() - i.activeWithinDays * 86_400_000 });
   if (!filters.length) throw new Error("searchCreators: hace falta al menos un filtro");
   const j = await cdb<{ success: boolean; errorCode?: string; errorDescription?: string; creditsUsed?: number; data?: { creatorList?: Array<Record<string, unknown>>; totalResults?: number; hasNextPage?: boolean; nextOffset?: number } }>(
     `/instagram/search`, { method: "POST", body: JSON.stringify({ filters, sortBy: "totalFollowers", desc: true, pageSize: Math.min(100, i.pageSize ?? 50), offset: i.offset ?? 0 }) });
@@ -149,19 +166,34 @@ export async function searchCreators(i: CreatorSearchInput): Promise<CreatorSear
   return { hits, total: j.data?.totalResults ?? hits.length, nextOffset: j.data?.hasNextPage ? (j.data.nextOffset ?? null) : null, creditsUsed, costUsd: creditsUsed * USD_PER_CREDIT };
 }
 
-let nichesCache: string[] | null = null;
-/** Lista de nichos de Instagram que acepta el filtro `niches`. Se cachea en memoria. */
-export async function listNiches(): Promise<string[]> {
+export interface Niche { id: string; name: string; count: number }
+let nichesCache: Niche[] | null = null;
+/** Nichos de Instagram del índice (id, nombre, cuentas). El filtro que funciona es `keywords: niches|<id>`. Se cachea en memoria. */
+export async function listNiches(): Promise<Niche[]> {
   if (nichesCache) return nichesCache;
   if (!isLive("creatordb")) return [];
   try {
     const j = await cdb<{ success: boolean; data?: unknown }>(`/instagram/niches`, { method: "GET" });
     const d = j.data as unknown;
-    const arr = Array.isArray(d) ? d : Array.isArray((d as { niches?: unknown })?.niches) ? (d as { niches: unknown[] }).niches : [];
-    nichesCache = arr.map((x) => (typeof x === "string" ? x : String((x as { name?: unknown; id?: unknown }).name ?? (x as { id?: unknown }).id ?? ""))).filter(Boolean);
-  } catch (e) {
-    console.warn(`[creatordb] no se pudo listar nichos: ${e instanceof Error ? e.message : e}`);
-    nichesCache = [];
+    const arr = (Array.isArray(d) ? d : Array.isArray((d as { niches?: unknown })?.niches) ? (d as { niches: unknown[] }).niches : []) as Array<Record<string, unknown>>;
+    nichesCache = arr.map((n) => ({ id: String(n.id ?? ""), name: String(n.name ?? ""), count: Number(n.channelCount ?? 0) })).filter((n) => n.id && n.name);
+    return nichesCache;
+  } catch { return []; }
+}
+
+/**
+ * Envía handles al índice de CreatorDB para que los indexe (gratis, asíncrono: 1 a 7 días). Así las creadoras
+ * que encontramos por Apify y no estaban en su base aparecen en las búsquedas por "similares" y hashtags de
+ * los próximos briefs. Devuelve cuántos aceptó; nunca lanza (es mejora de fondo, no camino crítico).
+ */
+export async function submitCreators(handles: string[]): Promise<number> {
+  if (!isLive("creatordb") || !handles.length) return 0;
+  let accepted = 0;
+  for (let i = 0; i < handles.length; i += 100) {
+    try {
+      const j = await cdb<{ success: boolean; data?: { accepted?: unknown[]; acceptedCount?: number } }>(`/instagram/submitCreators`, { method: "POST", body: JSON.stringify({ uniqueIds: handles.slice(i, i + 100) }) });
+      accepted += j.data?.acceptedCount ?? (Array.isArray(j.data?.accepted) ? j.data.accepted.length : 0);
+    } catch { /* sin consecuencias */ }
   }
-  return nichesCache;
+  return accepted;
 }

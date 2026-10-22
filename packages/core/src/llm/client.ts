@@ -107,7 +107,7 @@ class AnthropicClient implements LlmClient {
   async complete<T>(req: CompletionRequest<T>): Promise<Completion<T>> {
     const res = await this.client.messages.create({
       model: this.model,
-      max_tokens: req.maxTokens ?? 16000,
+      max_tokens: req.maxTokens ?? 6000,
       system: req.system,
       output_config: { format: { type: "json_schema", schema: strictJsonSchema(req.schema) } },
       messages: [{ role: "user", content: req.user }],

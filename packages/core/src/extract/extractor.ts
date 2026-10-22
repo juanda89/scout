@@ -57,7 +57,7 @@ class LlmExtractor implements Extractor {
     const res = await this.client.complete({
       system: SYSTEM,
       user: `Creadora: @${handle}\n\nPREDICADOS A EXTRAER:\n${JSON.stringify(preds, null, 1)}\n\nCONTENIDO (id, tipo, fecha, modalidad, texto):\n${JSON.stringify(content, null, 1)}`,
-      schema: OutputSchema, schemaName: "claims", maxTokens: 16000,
+      schema: OutputSchema, schemaName: "claims", maxTokens: 6000,
     });
     const claims: ExtractedClaim[] = [];
     for (const c of res.data.claims) {

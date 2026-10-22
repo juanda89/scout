@@ -89,7 +89,7 @@ class LlmClassifier implements Classifier {
       const r = await this.client.complete({
         system: SYSTEM,
         user: `PREGUNTAS:\n${JSON.stringify(qdesc)}\n\nTEXTOS:\n${JSON.stringify(batch)}`,
-        schema: LlmOutput, schemaName: "classification", maxTokens: 12000,
+        schema: LlmOutput, schemaName: "classification", maxTokens: 4000,
       });
       costUsd += r.costUsd;
       for (const it of r.data.items) {

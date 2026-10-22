@@ -89,15 +89,32 @@ function BigOrb({ mode, px, speed, dots, paused }: { mode: OrbMode; px: number; 
  * candidatas que van pasando los filtros; cada evento nuevo acelera un instante y emite una onda;
  * en cola respira despacio y al terminar se detiene.
  */
-export function LiveOrb({ mode, px, activity, passed, idle = false, done = false }: { mode: OrbMode; px: number; activity: number; passed: number; idle?: boolean; done?: boolean }) {
+/** Qué hace el orbe según lo que acaba de pasar en el pipeline (texto y tipo del último evento). */
+export function modeForEvent(text: string, kind?: string | null): OrbMode | null {
+  const t = text.toLowerCase();
+  if (kind === "find") return "solving";                                   // una candidata fuerte: las bandas encajan
+  if (kind === "drop") return "shaping";                                   // descarte: la forma cambia
+  if (kind === "error" || kind === "warn") return "breathing";             // pausa: algo falló o avisa
+  if (/audience|audiencia/.test(t)) return "connecting";                   // datos externos que se conectan
+  if (/reviewed|facts|posts|analy/.test(t)) return "working";              // leyendo contenido
+  if (/index|search|hashtag|trail|seeds|profiles|matching|related|tagged/.test(t)) return "searching";
+  if (/criterion|requirement|preference|reading|location|attributes/.test(t)) return "listening";
+  if (/ranked|fit|scor/.test(t)) return "weaving";                         // tejiendo el ranking
+  return "composing";
+}
+
+export function LiveOrb({ mode, px, activity, passed, idle = false, done = false, eventText = "", eventKind = null }: { mode: OrbMode; px: number; activity: number; passed: number; idle?: boolean; done?: boolean; eventText?: string; eventKind?: string | null }) {
   const [boost, setBoost] = useState(0);
+  const [burst, setBurst] = useState<OrbMode | null>(null);
   useEffect(() => {
     if (!activity) return;
     setBoost(1);
-    const steps = [setTimeout(() => setBoost(0.5), 900), setTimeout(() => setBoost(0), 2200)];
+    setBurst(modeForEvent(eventText, eventKind));                        // cada evento nuevo cambia el comportamiento
+    const steps = [setTimeout(() => setBoost(0.5), 900), setTimeout(() => setBoost(0), 2200), setTimeout(() => setBurst(null), 4200)];
     return () => steps.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activity]);
   const dots = Math.min(1.7, 0.85 + passed / 50);
   const speed = idle ? 0.55 : 1 + boost * 1.2;
-  return <Orb mode={idle ? "breathing" : mode} px={px} speed={speed} dots={idle ? 0.9 : dots} paused={done} pulseKey={idle ? 0 : activity} />;
+  return <Orb mode={idle ? "breathing" : burst ?? mode} px={px} speed={speed} dots={idle ? 0.9 : dots} paused={done} pulseKey={idle ? 0 : activity} />;
 }

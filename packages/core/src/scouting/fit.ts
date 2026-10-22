@@ -34,7 +34,8 @@ export function erBenchmark(followers: number | null): number {
 
 export function computeFit(i: FitInput): FitOutput {
   // Topic: el veredicto duro pesa 60 %, la proporción de contenido en tema 40 %.
-  const hard = i.verdict === "PASS" ? 100 : i.verdict === "UNKNOWN" ? 50 : 0;
+  // Sin evidencia del tema no hay candidata fuerte: UNKNOWN deja el componente de tema lejos del tope.
+  const hard = i.verdict === "PASS" ? 100 : i.verdict === "UNKNOWN" ? 30 : 0;
   const share = i.topicShare == null ? 50 : i.topicShare * 100;
   const topic = clamp(0.6 * hard + 0.4 * share);
 

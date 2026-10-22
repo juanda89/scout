@@ -66,6 +66,8 @@ export interface ScoutingMetrics {
   strong?: number;
   cost_usd?: number;
   profiles_analyzed?: number;
+  /** Candidatas verificadas en el tema (requisitos duros con evidencia) durante el descubrimiento. */
+  verified?: number;
 }
 
 /** Las cinco etapas del diseño. `mode` es el estado del Orb. */

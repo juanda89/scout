@@ -24,6 +24,7 @@ import { creatordbUsage, enrichAudience } from "./enrich/creatordb.js";
 import { extractFields } from "./scouting/fields.js";
 import { createScouting, getScouting, listEvents, listResults, listScoutings, listStages, updateScouting } from "./scouting/repo.js";
 import { runScoutingPipeline } from "./scouting/pipeline.js";
+import { ensureMediaFor, mediaEnabled } from "./media/s3.js";
 import { enqueueScouting, stopBoss } from "./scouting/queue.js";
 import { z } from "zod/v4";
 
@@ -154,6 +155,11 @@ sc.command("create <file>").description("Extrae los campos de una descripción y
       else console.log(`encolado: ${await enqueueScouting(s.id)}`);
     }
   });
+sc.command("media <id>").description("Espeja en S3 las fotos de perfil y 3 posts recientes de los resultados de un scouting").action(async (id: string) => {
+  if (!mediaEnabled()) throw new Error("MEDIA_BUCKET no está configurado");
+  const { rows } = await db().query(`SELECT creator_id FROM scouting_results WHERE scouting_id = $1 ORDER BY rank`, [id]);
+  console.log(`espejadas: ${await ensureMediaFor(rows.map((r) => r.creator_id), { content: 3 })} de ${rows.length}`);
+});
 sc.command("run <id>").description("Ejecuta el pipeline en este proceso").action(async (id: string) => {
   await updateScouting(id, { status: "queued" });
   await runScoutingPipeline(id, { log: (m) => console.log("  " + m) });

@@ -19,7 +19,8 @@ import { briefTextFrom } from "./fields.js";
 import { deriveSeeds } from "./seeds.js";
 import { computeFit } from "./fit.js";
 import { audienceInAgeRange, audienceInCountries, expandLocation, normCity, type GeoScope } from "./geo.js";
-import { runDiscovery } from "./discovery.js";
+import { FOLLOWER_TOLERANCE, runDiscovery } from "./discovery.js";
+import { ensureMediaFor, mediaEnabled } from "../media/s3.js";
 import { explainResults, type ExplainInput } from "./explain.js";
 import { STAGES, tierOf, type Scouting, type ScoutingResult } from "./types.js";
 
@@ -81,7 +82,7 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
     await ev(2, `Search seeds: ${seeds.hashtags.map((h) => "#" + h).join(" ")}`);
     const platforms = s.fields.platforms.length ? s.fields.platforms : ["instagram"];
     const wanted = s.fields.creators_wanted ?? 15;
-    let disc = { costUsd: 0, pool: 0, passing: 0, strategies: [] as Array<{ strategy: string; found: number; newProfiles: number; passing: number; costUsd: number }> };
+    let disc = { costUsd: 0, pool: 0, passing: 0, verified: 0, strategies: [] as Array<{ strategy: string; found: number; newProfiles: number; passing: number; verified: number; costUsd: number }> };
     if (process.env.SCOUT_INGEST !== "0") {
       disc = await runDiscovery({ scoutingId, fields: s.fields, geo, spec, platforms, wanted, seeds: seeds.hashtags, log, ev: (t, k, d) => ev(2, t, k, d) });
       cost += disc.costUsd;
@@ -95,8 +96,8 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
     }
     const { rows: [{ n: found }] } = await db().query(`SELECT count(*)::int AS n FROM creators WHERE platform = ANY($1)`, [platforms]);
     const candidates = await macroCandidates(spec.macro_filters, { platforms });
-    await mergeMetrics(scoutingId, { found: Number(found), passed: candidates.length, cost_usd: round(cost) });
-    await ev(2, `${candidates.length} of ${found} profiles pass size, location, language and account-type filters`);
+    await mergeMetrics(scoutingId, { found: Number(found), passed: candidates.length, verified: disc.verified, cost_usd: round(cost) });
+    await ev(2, `${candidates.length} of ${found} profiles pass size, location, language and account-type filters${disc.verified ? `; ${disc.verified} already verified on the brief's requirements` : ""}`);
     if (candidates.length < wanted) {
       const diag = await diagnoseFilters(spec, platforms, s, geo);
       await mergeMetrics(scoutingId, { diagnostic: diag } as Record<string, unknown>);
@@ -131,6 +132,7 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
     const prelimAll = prelim.map(({ c, e }) => buildResult(scoutingId, c, e, claimsBy.get(c.id) ?? [], spec, s, true)).sort(byEvidenceThenFit);
     const prelimRows = prelimAll.slice(0, 10).map((r, idx) => ({ ...r, rank: idx + 1 }));
     await upsertResults(scoutingId, prelimRows);
+    if (mediaEnabled()) await ensureMediaFor(prelimRows.map((r) => r.creator_id), { content: 0 });   // fotos de perfil para "Early finds"
     for (const r of prelimRows.slice(0, 3)) await ev(3, `@${(deep.find((c) => c.id === r.creator_id) ?? { handle: "?" }).handle} added to strong candidates (~${r.fit})`, "find");
     await mergeMetrics(scoutingId, { strong: prelimRows.filter((r) => r.fit >= 80).length });
     await setStage(scoutingId, 3, "done", `${deep.length.toLocaleString("en-US")} profiles analyzed`);
@@ -174,6 +176,7 @@ export async function runScoutingPipeline(scoutingId: string, opts: PipelineOpti
     for (const r of finals) { const x = byId.get(r.creator_id); if (x) { r.summary = x.summary; r.pros = x.pros; r.cons = x.cons; } }
     await progress(0.8);
     await upsertResults(scoutingId, finals);
+    if (mediaEnabled()) { const n = await ensureMediaFor(finals.map((r) => r.creator_id), { content: 3 }); if (n) await ev(5, `Saved profile photos and recent posts for ${n} creators`); }
     const strong = finals.filter((r) => r.fit >= 80).length;
     await ev(5, `Ranked ${finals.length} creators by fit · ${strong} strong candidates`);
     await mergeMetrics(scoutingId, { strong, profiles_analyzed: deep.length, cost_usd: round(cost) });
@@ -197,7 +200,8 @@ export function applyFieldsToSpec(spec: BriefSpec, s: Scouting, geo?: GeoScope):
   const mf = { ...spec.macro_filters };
   delete mf.er_estimate;                       // el engagement es preferencia blanda, nunca filtro macro
   delete mf["location.city"]; delete mf["location.country"];
-  if (f.followers_min != null || f.followers_max != null) mf.followers = { between: [f.followers_min ?? 0, f.followers_max ?? 100_000_000] };
+  // Seguidores: duro pero lógico. "Entre 200 y 500 mil" incluye a quien tiene 186 mil (10 % de tolerancia).
+  if (f.followers_min != null || f.followers_max != null) mf.followers = { between: [Math.floor((f.followers_min ?? 0) * (1 - FOLLOWER_TOLERANCE)), Math.ceil((f.followers_max ?? 100_000_000) * (1 + FOLLOWER_TOLERANCE))] };
   mf["language.primary"] = { eq: ({ Spanish: "es", English: "en", Portuguese: "pt" } as const)[f.language] };
   const known = ["ES", "MX", "CO", "AR", "CL", "PE", "US", "BR"];
   const countries = (geo?.countries.length ? geo.countries : f.countries).filter((c) => known.includes(c));

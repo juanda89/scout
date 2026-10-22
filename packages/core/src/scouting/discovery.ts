@@ -1,15 +1,18 @@
 import { z } from "zod/v4";
 import { db } from "../db.js";
-import { isLive } from "../config.js";
+import { config, isLive } from "../config.js";
 import { llm } from "../llm/client.js";
 import { ingestFromApify } from "../ingest/apify.js";
 import { storeCreators } from "../ingest/store.js";
 import type { IngestedCreator } from "../ingest/types.js";
-import { listNiches, searchCreators } from "../enrich/creatordb.js";
+import { listNiches, searchCreators, submitCreators, type CreatorSearchInput } from "../enrich/creatordb.js";
 import { extractPredicates } from "../extract/run.js";
+import { listClaimsForCreators } from "../extract/claims.js";
 import { listPredicates } from "../registry/registry.js";
 import { refreshFacets } from "../funnel/facets.js";
 import { macroCandidates } from "../funnel/macro-query.js";
+import { requiredPredicates } from "../funnel/run.js";
+import { evaluateCreator } from "../rules/engine.js";
 import type { BriefSpec } from "../schema/brief.js";
 import type { Predicate } from "../schema/predicate.js";
 import { A2_TO_A3, normCity, type GeoScope } from "./geo.js";
@@ -17,10 +20,14 @@ import { cityFromLocation } from "../ingest/store.js";
 import type { ScoutingFields } from "./types.js";
 
 /**
- * Descubrimiento por estrategias, como lo haría una persona: prueba una fuente, mide cuántos perfiles
- * útiles aporta, y cambia de estrategia o profundiza (bola de nieve) según el rendimiento.
- * Orden: 1) índice de CreatorDB (arranque en frío, barato), 2) búsqueda de perfiles por palabra clave,
- * 3) bola de nieve desde los candidatos que ya pasan los filtros, 4) hashtags localizados, 5) bola de nieve otra vez.
+ * Descubrimiento como lo haría una persona con criterio:
+ *  - La medida de éxito es cuántas creadoras quedan VERIFICADAS en el tema del brief (requisitos duros
+ *    con evidencia), no cuántas pasan filtros de tamaño y ciudad. Cada lote nuevo se verifica en caliente
+ *    con Jev (centavos) antes de decidir el siguiente paso.
+ *  - Si una fuente rinde, se insiste; si deja de rendir, se abandona. Una página sin verificadas cierra esa consulta.
+ *  - Arranque en frío con el índice de CreatorDB cruzando tema Y zona; después bola de nieve desde las
+ *    verificadas: las cuentas que Instagram recomienda junto a ellas, los hubs que etiquetan (festivales,
+ *    guías, restaurantes) y los hashtags reales que usan. Apify solo para lo que el índice no tiene.
  */
 export interface DiscoveryContext {
   scoutingId: string;
@@ -34,25 +41,126 @@ export interface DiscoveryContext {
   ev: (text: string, kind?: string, data?: unknown) => Promise<void>;
   maxCostUsd?: number;
 }
-export interface StrategyRun { strategy: string; found: number; newProfiles: number; passing: number; costUsd: number }
-export interface DiscoveryResult { costUsd: number; pool: number; passing: number; strategies: StrategyRun[] }
+export interface StrategyRun { strategy: string; found: number; newProfiles: number; passing: number; verified: number; costUsd: number }
+export interface DiscoveryResult { costUsd: number; pool: number; passing: number; verified: number; strategies: StrategyRun[] }
 
-const GENERIC_TAGS = new Set(["food", "foodie", "foodies", "foodporn", "streetfood", "instafood", "yummy", "delicious", "travel", "fitness", "running", "fashion", "beauty", "lifestyle", "love", "instagood", "photooftheday", "reels", "viral", "fyp", "explore", "parati", "comida", "receta", "recetas"]);
+const GENERIC_TAGS = new Set(["food", "foodie", "foodies", "foodporn", "streetfood", "instafood", "yummy", "delicious", "travel", "fitness", "running", "fashion", "beauty", "lifestyle", "love", "instagood", "photooftheday", "reels", "viral", "fyp", "explore", "parati", "comida", "receta", "recetas", "reel", "instagram", "trending", "explorepage", "colombia", "tiktok", "video", "humor", "amor", "familia", "vida"]);
 const LANG3: Record<string, string> = { Spanish: "spa", English: "eng", Portuguese: "por" };
+/** Tolerancia lógica en el rango de seguidores: "entre 200 y 500 mil" incluye a quien tiene 186 mil. */
+export const FOLLOWER_TOLERANCE = 0.1;
 
 export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResult> {
-  // Seis candidatas macro por creadora pedida bastan para que las etapas finas elijan (mínimo 15, máximo 120).
-  const target = Math.max(15, Math.min(120, ctx.wanted * 6));
+  const targetVerified = Math.max(6, Math.min(60, ctx.wanted * 3));
   const maxCost = ctx.maxCostUsd ?? Number(process.env.SCOUT_DISCOVERY_MAX_USD ?? 3);
-  const macro = (await listPredicates()).filter((p) => p.tier === "macro");
+  const registry = await listPredicates();
+  const macro = registry.filter((p) => p.tier === "macro");
+  const pmap = new Map(registry.map((p) => [p.key, p]));
+  const hardSpec: BriefSpec = { ...ctx.spec, requirements: ctx.spec.requirements.filter((r) => r.hard) };
+  const hardPreds = requiredPredicates(hardSpec, pmap).filter((p) => p.tier === "micro" && p.extraction_spec.provider === "jev");
+  const canVerify = hardSpec.requirements.length > 0 && hardPreds.length > 0;
+  const engineCtx = { now: new Date(), predicates: pmap, defaultMinConfidence: config.defaultMinConfidence };
   const strategies: StrategyRun[] = [];
   let cost = 0;
+  const verified = new Set<string>();      // ids verificados en el tema
+  const checked = new Set<string>();       // ids ya verificados (con cualquier resultado)
+  const handleOf = new Map<string, string>();
   const geoTerms = [...new Set([...ctx.geo.search_terms, ...ctx.geo.cities.slice(0, 8)].map(normCity).filter(Boolean))];
   const hasGeoTerm = (tag: string) => geoTerms.some((t) => t.length >= 3 && tag.includes(t.replace(/\s+/g, "")));
+  const tol = FOLLOWER_TOLERANCE;
+  const followersMin = ctx.fields.followers_min ? Math.floor(ctx.fields.followers_min * (1 - tol)) : null;
+  const followersMax = ctx.fields.followers_max ? Math.ceil(ctx.fields.followers_max * (1 + tol)) : null;
 
-  const passing = async () => (await macroCandidates(ctx.spec.macro_filters, { platforms: ctx.platforms })).length;
+  const passingIds = async () => (await macroCandidates(ctx.spec.macro_filters, { platforms: ctx.platforms })).map((c) => c.id);
+  const poolSize = async () => Number((await db().query(`SELECT count(*)::int AS n FROM creators WHERE platform = ANY($1)`, [ctx.platforms])).rows[0].n);
+  const done = () => verified.size >= targetVerified || cost >= maxCost;
+  const tally = () => canVerify ? `${verified.size} verified so far` : `${verified.size} matching so far`;
 
-  /* 0 · Lo que ya está en el índice: relee handle, bio, captions y geotags buscando la zona (sin costo). */
+  /** Verifica en caliente los requisitos duros (Jev sobre bio y captions). Devuelve cuántas nuevas verificadas y el costo. */
+  const verify = async (ids: string[]): Promise<{ added: number; costUsd: number }> => {
+    let added = 0, c = 0;
+    const fresh = ids.filter((id) => !checked.has(id));
+    if (!fresh.length) return { added, costUsd: c };
+    if (!canVerify) { for (const id of fresh) { checked.add(id); verified.add(id); added++; } return { added, costUsd: c }; }
+    const { rows } = await db().query(`SELECT id, handle FROM creators WHERE id = ANY($1)`, [fresh]);
+    for (const r of rows) handleOf.set(r.id, r.handle);
+    for (const id of fresh) {
+      checked.add(id);
+      try { c += (await extractPredicates(id, handleOf.get(id) ?? "", hardPreds)).costUsd; }
+      catch (e) { ctx.log(`verificación fallida @${handleOf.get(id)}: ${e instanceof Error ? e.message.slice(0, 120) : e}`); continue; }
+      const claims = (await listClaimsForCreators([id], hardPreds.map((p) => p.key))).get(id) ?? [];
+      const e = evaluateCreator(hardSpec, claims, engineCtx);
+      if (e.overall === "PASS") { verified.add(id); added++; }
+    }
+    return { added, costUsd: c };
+  };
+
+  /** Guarda, clasifica (barato primero), busca la zona en bio y posts, verifica el tema y mide el rendimiento. */
+  const absorb = async (strategy: string, input: unknown, creators: IngestedCreator[], extraCost: number, labelText: string): Promise<StrategyRun> => {
+    const before = new Set(await passingIds());
+    const stored = await storeCreators(creators);
+    const handles = creators.map((c) => c.handle.toLowerCase());
+    const { rows: pending } = await db().query(
+      `SELECT c.id, c.handle FROM creators c LEFT JOIN creator_facets f ON f.creator_id = c.id
+        WHERE c.platform = ANY($1) AND lower(c.handle) = ANY($2) AND (f.creator_id IS NULL OR f.refreshed_at < c.last_crawled)`, [ctx.platforms, handles]);
+    if (ctx.geo.cities.length) await cityEvidence(pending.map((c) => c.id), ctx.geo);
+    let classifyCost = 0, failures = 0;
+    for (const c of pending) {
+      try { classifyCost += await classifyCreator(c.id, c.handle, macro, ctx); }
+      catch (e) { failures++; ctx.log(`clasificación fallida @${c.handle}: ${e instanceof Error ? e.message.slice(0, 120) : e}`); }
+    }
+    if (failures) await ctx.ev(`${failures} profiles could not be classified right now (provider errors); they stay in the index for the next run`, "warn");
+    const after = await passingIds();
+    const newPassing = after.filter((id) => !before.has(id));
+    const v = await verify(newPassing);
+    const run: StrategyRun = { strategy, found: creators.length, newProfiles: stored.creators, passing: newPassing.length, verified: v.added, costUsd: extraCost + classifyCost + v.costUsd };
+    cost += run.costUsd;
+    strategies.push(run);
+    await db().query(`INSERT INTO discovery_runs (scouting_id, strategy, input, found, new_profiles, passing, verified, cost_usd) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [ctx.scoutingId, strategy, JSON.stringify(input ?? {}), run.found, run.newProfiles, run.passing, run.verified, run.costUsd.toFixed(4)]);
+    await ctx.ev(`${labelText}: ${creators.length} profiles, ${run.passing} pass the filters, ${run.verified} ${canVerify ? "verified on the brief" : "new matches"} (${run.costUsd.toFixed(2)} USD) · ${tally()}`, run.verified ? "info" : "warn");
+    return run;
+  };
+
+  /** Una consulta al índice de CreatorDB, página a página mientras rinda. Trae bio y posts con Apify para poder clasificar. */
+  const probe = async (name: string, labelText: string, input: CreatorSearchInput, maxPages: number): Promise<number> => {
+    if (done() || !isLive("creatordb")) return 0;
+    let offset = 0, gained = 0, prev = -1;
+    for (let page = 0; page < maxPages; page++) {
+      if (done()) break;
+      let r;
+      try { r = await searchCreators({ ...input, pageSize: 50, offset }); }
+      catch (e) { await ctx.ev(`${labelText} failed: ${e instanceof Error ? e.message : e}`, "warn"); break; }
+      ctx.log(`creatordb ${name} p${page + 1}: ${r.hits.length} de ${r.total} (${r.costUsd.toFixed(2)} USD)`);
+      const { rows: known } = await db().query(`SELECT lower(handle) AS h FROM creators WHERE platform = 'instagram' AND lower(handle) = ANY($1)`, [r.hits.map((h) => h.handle)]);
+      const knownSet = new Set(known.map((k) => String(k.h)));
+      const fresh = r.hits.filter((h) => !knownSet.has(h.handle));
+      if (!r.hits.length) { cost += r.costUsd; strategies.push({ strategy: name, found: 0, newProfiles: 0, passing: 0, verified: 0, costUsd: r.costUsd }); break; }
+      // Perfiles ya conocidos: no se vuelven a traer; solo se verifican si pasan filtros y aún no se habían verificado.
+      const { rows: knownIds } = await db().query(`SELECT id FROM creators WHERE platform = 'instagram' AND lower(handle) = ANY($1)`, [[...knownSet]]);
+      const passingNow = new Set(await passingIds());
+      const reVerify = await verify(knownIds.map((k) => k.id).filter((id) => passingNow.has(id)));
+      cost += reVerify.costUsd;
+      let run: StrategyRun | null = null;
+      if (fresh.length) {
+        const ing = isLive("apify") ? await ingestFromApify({ profiles: fresh.map((h) => h.handle).slice(0, 50), maxPostsPerProfile: 12, log: ctx.log }) : { creators: [], costUsd: 0, runs: [] };
+        const creators = ing.creators.length ? ing.creators : fresh.map((h) => ({ platform: "instagram" as const, handle: h.handle, display_name: h.displayName, followers: h.followers, avatar_url: h.avatarUrl, posts: [], discovered_via: name }));
+        run = await absorb(name, { filters: input, page: page + 1 }, creators, r.costUsd + ing.costUsd, labelText);
+      } else {
+        cost += r.costUsd;
+        await ctx.ev(`${labelText}: ${r.hits.length} profiles already in the index, ${reVerify.added} newly verified · ${tally()}`);
+      }
+      const y = (run?.verified ?? 0) + reVerify.added;
+      gained += y;
+      // Rendimiento: una página sin verificadas cierra la consulta; si cae a menos de la mitad y es baja, también.
+      if (y === 0 || (prev >= 0 && y < 2 && y < prev / 2)) break;
+      prev = y;
+      if (r.nextOffset == null) break;
+      offset = r.nextOffset;
+    }
+    return gained;
+  };
+
+  /* 0 · Lo que ya está en el índice: zona sin costo y verificación de quien ya pasa filtros */
   if (ctx.geo.cities.length) {
     const { rows } = await db().query(
       `SELECT c.id FROM creators c LEFT JOIN creator_facets f ON f.creator_id = c.id
@@ -67,105 +175,107 @@ export async function runDiscovery(ctx: DiscoveryContext): Promise<DiscoveryResu
       }
     }
   }
-  const poolSize = async () => Number((await db().query(`SELECT count(*)::int AS n FROM creators WHERE platform = ANY($1)`, [ctx.platforms])).rows[0].n);
-
-  /** Guarda, clasifica (barato primero) y mide cuántos pasan los filtros macro. */
-  const absorb = async (strategy: string, input: unknown, creators: IngestedCreator[], extraCost: number): Promise<StrategyRun> => {
-    const before = await passing();
-    const stored = await storeCreators(creators);
-    const { rows: pending } = await db().query(
-      `SELECT c.id, c.handle FROM creators c LEFT JOIN creator_facets f ON f.creator_id = c.id
-       WHERE c.platform = ANY($1) AND (f.creator_id IS NULL OR f.refreshed_at < c.last_crawled)`, [ctx.platforms]);
-    if (ctx.geo.cities.length) await cityEvidence(pending.map((c) => c.id), ctx.geo);
-    let classifyCost = 0, failures = 0;
-    for (const c of pending) {
-      try { classifyCost += await classifyCreator(c.id, c.handle, macro, ctx); }
-      catch (e) { failures++; ctx.log(`clasificación fallida @${c.handle}: ${e instanceof Error ? e.message.slice(0, 120) : e}`); }
-    }
-    if (failures) await ctx.ev(`${failures} profiles could not be classified right now (provider errors); they stay in the index for the next run`, "warn");
-    const after = await passing();
-    const run: StrategyRun = { strategy, found: creators.length, newProfiles: stored.creators, passing: after - before, costUsd: extraCost + classifyCost };
-    cost += run.costUsd;
-    strategies.push(run);
-    await db().query(`INSERT INTO discovery_runs (scouting_id, strategy, input, found, new_profiles, passing, cost_usd) VALUES ($1,$2,$3,$4,$5,$6,$7)`, [ctx.scoutingId, strategy, JSON.stringify(input), run.found, run.newProfiles, run.passing, run.costUsd.toFixed(4)]);
-    await ctx.ev(`${label(strategy)}: ${creators.length} profiles, ${run.passing} new matches (${run.costUsd.toFixed(2)} USD) · ${after} matching so far`);
-    return run;
-  };
-  const enough = async () => (await passing()) >= target;
-  const overBudget = () => cost >= maxCost;
-
-  /* 1 · Índice de CreatorDB: país, tamaño, idioma, hashtags y nichos */
-  if (isLive("creatordb") && ctx.geo.countries.length) {
-    const niches = await pickNiches(ctx.fields.topics, ctx.geo.label);
-    const base = { countriesAlpha3: ctx.geo.countries.map((c) => A2_TO_A3[c] ?? c), followersMin: ctx.fields.followers_min, followersMax: ctx.fields.followers_max, language: LANG3[ctx.fields.language] ?? null };
-    const geoTags = geoTerms.map((t) => t.replace(/\s+/g, "")).filter((t) => t.length >= 4).slice(0, 20);
-    const variants: Array<[string, Parameters<typeof searchCreators>[0], number]> = [];
-    if (ctx.seeds.length) variants.push(["hashtags", { ...base, hashtags: ctx.seeds.slice(0, 30) }, 2]);
-    if (geoTags.length) variants.push(["geo-hashtags", { ...base, hashtags: geoTags }, 3]);   // quien escribe #medellin en sus captions
-    if (niches.length) variants.push(["niches", { ...base, niches }, 2]);
-    variants.push(["size+country", base, 4]);
-    for (const [vname, input, maxPages] of variants) {
-      let offset = 0;
-      const bands = vname === "size+country" ? followerBands(input.followersMin, input.followersMax, maxPages) : null;
-      let dry = 0;   // páginas seguidas sin candidatas nuevas: una persona cambiaría de estrategia
-      for (let page = 0; page < maxPages; page++) {
-        if (await enough() || overBudget() || dry >= 2) break;
-        try {
-          const band = bands?.[page];
-          const r = await searchCreators({ ...input, ...(band ? { followersMin: band[0], followersMax: band[1] } : {}), pageSize: 50, offset: band ? 0 : offset });
-          ctx.log(`creatordb ${vname} p${page + 1}: ${r.hits.length} de ${r.total} (${r.costUsd.toFixed(2)} USD)`);
-          const handles = r.hits.map((h) => h.handle);
-          if (!handles.length) { strategies.push({ strategy: `creatordb:${vname}`, found: 0, newProfiles: 0, passing: 0, costUsd: r.costUsd }); cost += r.costUsd; break; }
-          const ing = isLive("apify") ? await ingestFromApify({ profiles: handles.slice(0, 50), maxPostsPerProfile: 12, log: ctx.log }) : { creators: [], costUsd: 0, runs: [] };
-          const creators = ing.creators.length ? ing.creators : r.hits.map((h) => ({ platform: "instagram" as const, handle: h.handle, display_name: h.displayName, followers: h.followers, avatar_url: h.avatarUrl, posts: [], discovered_via: `creatordb:${vname}` }));
-          const run = await absorb(`creatordb:${vname}`, { filters: input, page: page + 1 }, creators, r.costUsd + ing.costUsd);
-          dry = run.passing > 0 ? 0 : dry + 1;
-          if (band) continue;
-          if (r.nextOffset == null) break;
-          offset = r.nextOffset;
-        } catch (e) { await ctx.ev(`CreatorDB search (${vname}) failed: ${e instanceof Error ? e.message : e}`, "warn"); break; }
-      }
-    }
+  {
+    const existing = await passingIds();
+    const v = await verify(existing);
+    cost += v.costUsd;
+    if (existing.length) await ctx.ev(`${existing.length} profiles already in the index pass the filters; ${verified.size} ${canVerify ? "verified on the brief" : "matching"} (${v.costUsd.toFixed(2)} USD)`);
   }
 
-  /* 2 · Búsqueda de perfiles por palabra clave en Instagram */
-  if (!(await enough()) && !overBudget() && isLive("apify")) {
+  const base: CreatorSearchInput = { countriesAlpha3: ctx.geo.countries.map((c) => A2_TO_A3[c] ?? c), followersMin, followersMax, language: LANG3[ctx.fields.language] ?? null, activeWithinDays: 90 };
+  const geoTags = geoTerms.map((t) => t.replace(/\s+/g, "")).filter((t) => t.length >= 4).slice(0, 20);
+  const nicheIds = isLive("creatordb") ? await pickNicheIds(ctx.fields.topics) : [];
+  if (nicheIds.length) ctx.log(`nichos de CreatorDB: ${nicheIds.join(", ")}`);
+
+  /* 1 · Arranque en frío: tema Y zona en el índice */
+  if (nicheIds.length && geoTags.length) await probe("creatordb:niche+geo", "CreatorDB index (topic niches × local hashtags)", { ...base, nicheIds, hashtags: geoTags }, 3);
+  if (ctx.seeds.length) await probe("creatordb:seed-hashtags", "CreatorDB index (topic hashtags)", { ...base, hashtags: ctx.seeds.slice(0, 30) }, 2);
+
+  /* 2 · Bola de nieve desde las verificadas, en rondas mientras aparezcan nuevas */
+  const usedSeeds = new Set<string>(), usedHubs = new Set<string>(), usedTags = new Set<string>();
+  const primaryCats = ((ctx.spec.macro_filters["content.category"]?.any_of as string[] | undefined) ?? []).slice(0, 1);
+  const topicWords = (await nicheWords(ctx.fields.topics)).map((w) => normCity(w).replace(/\s+/g, "")).filter((w) => w.length >= 4);
+  const isTopical = (tag: string) => topicWords.some((w) => tag.includes(w));
+  for (let round = 1; round <= 4 && !done(); round++) {
+    const beforeRound = verified.size;
+    try {
+    // Semillas: las verificadas; si son pocas, también quienes pasan filtros y publican de la categoría principal
+    // (una persona miraría los "similares" de cualquier foodie de la zona, no solo de las ya confirmadas).
+    let seedIds = [...verified];
+    if (seedIds.length < 4 && primaryCats.length) {
+      const { rows } = await db().query(
+        `SELECT f.creator_id AS id FROM creator_facets f JOIN creators c ON c.id = f.creator_id
+          WHERE c.platform = ANY($1) AND f.facets->'content.category' ?| $2::text[] AND NOT (f.creator_id = ANY($3))
+          ORDER BY f.followers DESC NULLS LAST LIMIT 12`, [ctx.platforms, primaryCats, seedIds.length ? seedIds : ["00000000-0000-0000-0000-000000000000"]]);
+      const passingNow = new Set(await passingIds());
+      seedIds = [...seedIds, ...rows.map((r) => r.id as string).filter((id) => passingNow.has(id))];
+    }
+    if (!seedIds.length) break;
+    const { rows: seedRows } = await db().query(`SELECT id, handle FROM creators WHERE id = ANY($1)`, [seedIds]);
+    const seedHandles = seedRows.map((r) => String(r.handle).toLowerCase()).filter((h) => !usedSeeds.has(h));
+    seedHandles.forEach((h) => usedSeeds.add(h));
+    // a) cuentas que Instagram recomienda junto a las verificadas
+    if (seedHandles.length) {
+      ctx.log(`related r${round} semillas: ${seedHandles.join(", ")}`);
+      await probe(`related:${round}`, `Accounts Instagram recommends next to ${seedHandles.length} verified creators (${seedHandles.slice(0, 3).map((h) => "@" + h).join(", ")}${seedHandles.length > 3 ? "…" : ""})`, { ...base, relatedTo: seedHandles.slice(0, 100) }, 2);
+    }
+    if (done()) break;
+    // b) hubs: cuentas que las verificadas etiquetan (festivales, guías, restaurantes) -> quién más los etiqueta
+    const minShared = 2;
+    const { rows: hubRows } = await db().query(
+      `SELECT lower(m) AS handle, count(DISTINCT ci.creator_id)::int AS n FROM content_items ci JOIN creators c ON c.id = ci.creator_id, unnest(ci.mentions) AS m
+        WHERE ci.creator_id = ANY($1) AND lower(m) <> lower(c.handle) GROUP BY lower(m) HAVING count(DISTINCT ci.creator_id) >= $2 ORDER BY n DESC LIMIT 40`, [seedIds, minShared]);
+    const hubs = hubRows.map((r) => String(r.handle).toLowerCase()).filter((h) => !usedHubs.has(h) && !usedSeeds.has(h)).slice(0, 30);
+    hubs.forEach((h) => usedHubs.add(h));
+    if (hubs.length) await probe(`tagged:${round}`, `Creators who tag the same places as the verified ones (${hubs.slice(0, 3).map((h) => "@" + h).join(", ")}…)`, { ...base, tagged: hubs }, 2);
+    if (done()) break;
+    // c) hashtags reales de las verificadas (donde una persona aprende "#medellingourmet")
+    const { rows: tagRows } = await db().query(
+      `SELECT t AS tag, count(DISTINCT creator_id)::int AS n FROM content_items, unnest(hashtags) AS t WHERE creator_id = ANY($1) GROUP BY t HAVING count(DISTINCT creator_id) >= $2 ORDER BY n DESC, t LIMIT 60`, [seedIds, minShared]);
+    const tags = tagRows.map((r) => ({ t: String(r.tag).toLowerCase(), n: Number(r.n) }))
+      .filter(({ t, n }) => !GENERIC_TAGS.has(t) && !usedTags.has(t) && t.length >= 5 && !ctx.seeds.includes(t) && (isTopical(t) || (hasGeoTerm(t) && n >= 2) || n >= 4))
+      .map(({ t }) => t).slice(0, 25);
+    tags.forEach((t) => usedTags.add(t));
+    if (tags.length) await probe(`learned-hashtags:${round}`, `Hashtags the verified creators really use (${tags.slice(0, 3).map((t) => "#" + t).join(" ")}…)`, { ...base, hashtags: tags }, 2);
+    } catch (e) { await ctx.ev(`Snowball round ${round} failed: ${e instanceof Error ? e.message : e}`, "warn"); }
+    if (verified.size === beforeRound) break;   // la ronda no aportó: no insistir
+  }
+
+  /* 3 · Si sigue corto: nicho por país (más amplio) y hashtags de la zona (lo más amplio) */
+  if (!done() && nicheIds.length) await probe("creatordb:niche", "CreatorDB index (topic niches, whole country)", { ...base, nicheIds }, 2);
+  if (!done() && geoTags.length) await probe("creatordb:geo-hashtags", "CreatorDB index (local hashtags)", { ...base, hashtags: geoTags }, 2);
+
+  /* 4 · Lo que el índice no tiene: Apify (búsqueda de perfiles por palabra clave y posts de los hashtags aprendidos) */
+  if (!done() && isLive("apify")) {
     const queries = buildQueries(ctx.fields.topics, geoTerms);
     if (queries.length) {
       try {
         const ing = await ingestFromApify({ queries, limit: 20, maxPostsPerProfile: 12, log: ctx.log });
-        await absorb("profile_search", { queries }, ing.creators, ing.costUsd);
+        await absorb("profile_search", { queries }, ing.creators, ing.costUsd, "Instagram profile search");
       } catch (e) { await ctx.ev(`Profile search failed: ${e instanceof Error ? e.message : e}`, "warn"); }
     }
   }
-
-  /* 3 · Bola de nieve desde los que ya encajan */
-  if (!(await enough()) && !overBudget() && isLive("apify")) await snowball(ctx, absorb, hasGeoTerm);
-
-  /* 4 · Hashtags localizados */
-  if (!(await enough()) && !overBudget() && isLive("apify")) {
-    const tags = ctx.seeds.filter((t) => hasGeoTerm(t) || (!GENERIC_TAGS.has(t) && t.length >= 10)).slice(0, 8);
-    if (tags.length) {
-      try {
-        const ing = await ingestFromApify({ hashtags: tags, limit: 40, maxPostsPerProfile: 12, log: ctx.log });
-        await absorb("hashtags", { tags }, ing.creators, ing.costUsd);
-      } catch (e) { await ctx.ev(`Hashtag search failed: ${e instanceof Error ? e.message : e}`, "warn"); }
-    }
+  if (!done() && isLive("apify") && usedTags.size) {
+    const tags = [...usedTags].slice(0, 6);
+    try {
+      const ing = await ingestFromApify({ hashtags: tags, limit: 40, maxPostsPerProfile: 12, log: ctx.log });
+      await absorb("hashtag-posts", { tags }, ing.creators, ing.costUsd, `Who posts under ${tags.slice(0, 3).map((t) => "#" + t).join(" ")}`);
+    } catch (e) { await ctx.ev(`Hashtag search failed: ${e instanceof Error ? e.message : e}`, "warn"); }
   }
 
-  /* 5 · Segunda bola de nieve con lo aprendido */
-  if (!(await enough()) && !overBudget() && isLive("apify")) await snowball(ctx, absorb, hasGeoTerm, 2);
+  /* 5 · Las verificadas que el índice de CreatorDB no tenía se le envían (gratis): el próximo brief las encontrará por "similares" y hashtags. */
+  if (verified.size && isLive("creatordb")) {
+    const { rows } = await db().query(`SELECT handle FROM creators WHERE id = ANY($1) AND (discovered_via IS NULL OR discovered_via NOT LIKE 'creatordb%' AND discovered_via NOT LIKE 'related%' AND discovered_via NOT LIKE 'tagged%' AND discovered_via NOT LIKE 'learned%')`, [[...verified]]);
+    const n = await submitCreators(rows.map((r) => String(r.handle)));
+    if (n) ctx.log(`enviadas a CreatorDB para indexar: ${n}`);
+  }
 
-  return { costUsd: cost, pool: await poolSize(), passing: await passing(), strategies };
-}
-
-function label(s: string): string {
-  return s.startsWith("creatordb") ? `CreatorDB index (${s.split(":")[1]})` : s === "profile_search" ? "Instagram profile search" : s.startsWith("snowball") ? "Following the trail of matching creators" : "Localized hashtags";
+  return { costUsd: cost, pool: await poolSize(), passing: (await passingIds()).length, verified: verified.size, strategies };
 }
 
 /**
  * Clasificación macro con control de costo: primero Jev (centavos) sobre bio y captions; la extracción de
- * ciudad con el LLM solo si idioma y país encajan con el brief y los geotags no la dieron ya.
+ * ciudad con el LLM solo si idioma y país encajan con el brief y las señales determinísticas no la dieron ya.
  */
 async function classifyCreator(creatorId: string, handle: string, macro: Predicate[], ctx: DiscoveryContext): Promise<number> {
   let cost = 0;
@@ -193,46 +303,41 @@ function buildQueries(topics: string[], geoTerms: string[]): string[] {
   return [...new Set(out)].slice(0, 6);
 }
 
-/** Hashtags reales y cuentas mencionadas por quienes ya encajan: donde una persona aprendería "#medellingourmet". */
-async function snowball(ctx: DiscoveryContext, absorb: (s: string, i: unknown, c: IngestedCreator[], extra: number) => Promise<StrategyRun>, hasGeoTerm: (t: string) => boolean, round = 1): Promise<void> {
-  const cands = await macroCandidates(ctx.spec.macro_filters, { platforms: ctx.platforms });
-  let ids = cands.map((c) => c.id);
-  if (!ids.length) {
-    // Sin candidatos aún: usa los perfiles del país objetivo con más seguidores como punto de partida.
-    const { rows } = await db().query(`SELECT f.creator_id AS id FROM creator_facets f JOIN creators c ON c.id = f.creator_id WHERE c.platform = ANY($1) AND ($2::text[] = '{}' OR f.facets->'location.country' ?| $2) ORDER BY f.followers DESC NULLS LAST LIMIT 15`, [ctx.platforms, ctx.geo.countries]);
-    ids = rows.map((r) => r.id);
-  }
-  if (!ids.length) return;
-  const { rows: tagRows } = await db().query(
-    `SELECT t AS tag, count(DISTINCT creator_id)::int AS creators FROM content_items, unnest(hashtags) AS t WHERE creator_id = ANY($1) GROUP BY t ORDER BY creators DESC, t LIMIT 60`, [ids]);
-  const seedSet = new Set(ctx.seeds);
-  const tags = tagRows.map((r) => ({ tag: String(r.tag), n: Number(r.creators) }))
-    .filter((r) => !seedSet.has(r.tag) && !GENERIC_TAGS.has(r.tag) && r.tag.length >= 5 && (hasGeoTerm(r.tag) || r.n >= 2))
-    .slice(0, 6).map((r) => r.tag);
-  const { rows: menRows } = await db().query(
-    `SELECT m AS handle, count(DISTINCT creator_id)::int AS creators FROM content_items, unnest(mentions) AS m WHERE creator_id = ANY($1)
-       AND m NOT IN (SELECT handle FROM creators) GROUP BY m ORDER BY creators DESC LIMIT 25`, [ids]);
-  const handles = menRows.map((r) => String(r.handle));
-  if (!tags.length && !handles.length) return;
-  try {
-    const ing = await ingestFromApify({ hashtags: tags, profiles: handles, limit: 30, maxPostsPerProfile: 12, log: ctx.log });
-    await absorb(`snowball:${round}`, { from: ids.length, tags, handles }, ing.creators, ing.costUsd);
-  } catch (e) { await ctx.ev(`Snowball search failed: ${e instanceof Error ? e.message : e}`, "warn"); }
-}
-
-const NichePick = z.object({ niches: z.array(z.string()) });
-/** Elige hasta 5 nichos de CreatorDB afines a los temas del brief (lista cerrada, el modelo solo escoge). */
-async function pickNiches(topics: string[], place: string): Promise<string[]> {
-  const all = await listNiches();
+const NicheWords = z.object({ words: z.array(z.string()) });
+/**
+ * Nichos de CreatorDB para los temas del brief. La lista tiene ~40.000 nombres (son hashtags normalizados),
+ * así que el modelo propone palabras de nicho en inglés y español y se cruzan con la lista por nombre exacto.
+ */
+const nicheWordsCache = new Map<string, string[]>();
+/** Palabras de nicho del tema (inglés y español), una sola palabra cada una: "food, foodie, restaurant, comida…". */
+export async function nicheWords(topics: string[]): Promise<string[]> {
+  const key = topics.join("|");
+  const hit = nicheWordsCache.get(key); if (hit) return hit;
+  let words: string[] = topics.flatMap((t) => normCity(t).split(" ")).filter((w) => w.length >= 4 && !["tipo", "region", "comercios", "reviews", "hacer", "para", "como"].includes(w));
   const client = llm("classify");
-  if (!all.length || !client || !topics.length) return [];
-  try {
-    const r = await client.complete({ system: "Elige de la lista cerrada los nichos de Instagram que mejor representan los temas del brief. Devuelve entre 1 y 5, copiados exactamente. Si ninguno encaja, lista vacía.", user: JSON.stringify({ topics, place, niches: all.slice(0, 400) }), schema: NichePick, schemaName: "niches", maxTokens: 400 });
-    const set = new Set(all);
-    return r.data.niches.filter((n) => set.has(n)).slice(0, 5);
-  } catch { return []; }
+  if (client) {
+    try {
+      const r = await client.complete({
+        system: "Para los temas de un brief de influencers, propone de 6 a 12 palabras de nicho de Instagram, una sola palabra cada una, sin #, en inglés y en español, de lo más general a lo más específico (ej. comida -> food, foodie, foodblogger, restaurant, streetfood, gastronomia, comida, restaurantes). Solo palabras, nada más.",
+        user: JSON.stringify({ topics }), schema: NicheWords, schemaName: "niche_words", maxTokens: 400,
+      });
+      words = [...r.data.words.map((w) => w.toLowerCase().replace(/[^a-z0-9áéíóúñ]/g, "")), ...words];
+    } catch { /* se queda con las palabras del brief */ }
+  }
+  words = [...new Set(words.filter(Boolean))];
+  nicheWordsCache.set(key, words);
+  return words;
 }
 
+export async function pickNicheIds(topics: string[]): Promise<string[]> {
+  const all = await listNiches();
+  if (!all.length || !topics.length) return [];
+  const byName = new Map(all.map((n) => [n.name.toLowerCase(), n]));
+  const words = await nicheWords(topics);
+  const picked: Array<{ id: string; count: number }> = [];
+  for (const w of words) { const n = byName.get(w); if (n && !picked.some((p) => p.id === n.id)) picked.push({ id: n.id, count: n.count }); }
+  return picked.sort((a, b) => b.count - a.count).slice(0, 6).map((p) => p.id);
+}
 
 /** Divide el rango de seguidores en bandas log-uniformes: cada página del índice muestra otra parte del rango, no solo el tope. */
 export function followerBands(min: number | null | undefined, max: number | null | undefined, n: number): Array<[number, number]> {

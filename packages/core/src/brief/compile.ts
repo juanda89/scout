@@ -67,7 +67,7 @@ const SYSTEM = `Eres el compilador de briefs de una herramienta de scouting de c
 especificación determinista. Reglas:
 1. MACRO primero: todo lo que se pueda expresar con los predicados macro existentes va en macro_filters (son filtros SQL baratos).
    Clave especial numérica: "followers" (between). NUNCA uses er_estimate ni el engagement como filtro macro: es una preferencia blanda.
-   content.category: pon SIEMPRE any_of con 2 a 4 categorías afines al tema (ej. comida -> cocina, lifestyle, viajes; maternidad -> maternidad, familia, lifestyle).
+   content.category: pon SIEMPRE any_of con 1 a 3 categorías, la principal primero y solo las que un creador del tema tendría de verdad (ej. comida -> cocina, lifestyle; maternidad -> maternidad, familia).
    No pongas location.city ni location.country: la ubicación la resuelve el sistema aparte a partir del brief.
 2. Lo específico va en requirements. Reutiliza predicados existentes siempre que cubran el pedido; solo propone new_predicates si ninguno sirve.
 3. Para atributos que envejecen (edad de hijos, tiempo desde un evento) usa predicados con derivación y evalúa la regla con "derived" (el nombre del hecho virtual, ej. "child.age_months") y un operador numérico.

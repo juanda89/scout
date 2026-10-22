@@ -90,7 +90,7 @@ export function Progress({ id, name, subtitle, initial, notifyEmail, email, coun
             <div style={{ position: "relative", width: 720, maxWidth: "100%", height: 360, overflow: "visible" }}>
               {/* Anillos y orbe comparten centro: (50 %, 180 px) del escenario. */}
               <div aria-hidden="true" style={{ position: "absolute", left: "calc(50% - 190px)", top: -10, pointerEvents: "none" }}><HudRings px={380} speed={queued ? 0.5 : 1 + Math.min(1, activity / 40)} /></div>
-              <div style={{ position: "absolute", left: "calc(50% - 140px)", top: 40 }}><LiveOrb mode={stage.mode as OrbMode} px={280} activity={activity} passed={m.passed ?? 0} idle={queued} done={failed || cancelled} /></div>
+              <div style={{ position: "absolute", left: "calc(50% - 140px)", top: 40 }}><LiveOrb mode={stage.mode as OrbMode} px={280} activity={activity} passed={m.passed ?? 0} idle={queued} done={failed || cancelled} eventText={events[0]?.text ?? ""} eventKind={events[0]?.kind ?? null} /></div>
               <div className="hide-sm" aria-hidden="true">
                 {[[172, 100, 281], [172, 260, 281], [438, 100, 433], [438, 260, 433]].map(([l, t, d], i) => (
                   <span key={i} style={{ display: "contents" }}>

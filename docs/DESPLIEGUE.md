@@ -32,6 +32,13 @@ URL pública: `https://dvize5gk9sjfs.cloudfront.net`. Origen: `http://100.63.14.
 - Lo aplica el trigger `trg_scouting_quota` al pasar un scouting de borrador a lanzado: cuenta los scoutings del dueño que no sean borrador ni cancelados y rechaza con `quota_exceeded` si alcanzó el cupo. La web muestra el cupo en la lista, bloquea "New scouting" al agotarlo y traduce el error al lanzar.
 - Para dar más cupo a alguien: `UPDATE users SET quota_override = 10 WHERE email = '...'` en la base, o añadir el correo a `ADMIN_EMAILS` y redesplegar.
 
+## Imágenes de creadoras (S3)
+
+- Las URLs de Instagram caducan en horas y bloquean el hotlink, así que las fotos de perfil y los tres posts recientes de cada creadora en resultados se copian al bucket `scout-media-548984830494` (us-east-1), público solo para lectura de objetos.
+- Regla de ciclo de vida: el prefijo `content/` se borra a los 7 días; `avatars/` es permanente.
+- Variables (en `.env.prod`): `MEDIA_BUCKET`, `MEDIA_REGION` y las credenciales del usuario IAM `scout-media` (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`), que solo puede escribir y leer en ese bucket. Sin `MEDIA_BUCKET` la app muestra las URLs originales.
+- Rellenar un scouting ya terminado: `docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T worker node_modules/.bin/tsx packages/core/src/cli.ts scouting media <scouting_id>`.
+
 ## Operar
 
 ```bash
