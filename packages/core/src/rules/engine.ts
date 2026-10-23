@@ -12,6 +12,8 @@ export interface RequirementResult {
   reason: string;
   claim_ids: string[];
   values: unknown[];
+  /** Evidencias independientes que cumplen la regla (solo cuando UNKNOWN por conteo insuficiente). */
+  evidence_count?: number;
 }
 
 export interface CreatorEvaluation {
@@ -140,7 +142,7 @@ export function evaluateRequirement(req: Requirement, allClaims: Claim[], ctx: E
     if (n >= 1 && nS >= req.min_evidence) {
       return { ...base, verdict: "PASS", reason: `${nS} evidencia(s), ${n} fuerte(s) y ${nS - n} de apoyo`, claim_ids: supSat.map((c) => c.claim.id), values: supSat.map((c) => c.value) };
     }
-    return { ...base, verdict: "UNKNOWN", reason: `evidencia insuficiente (${n}/${req.min_evidence})`, claim_ids: satisfying.map((c) => c.claim.id), values: satisfying.map((c) => c.value) };
+    return { ...base, verdict: "UNKNOWN", reason: `evidencia insuficiente (${n}/${req.min_evidence})`, claim_ids: satisfying.map((c) => c.claim.id), values: satisfying.map((c) => c.value), evidence_count: n };
   }
   return { ...base, verdict: "PASS", reason: `${n} evidencia(s) independiente(s)`, claim_ids: satisfying.map((c) => c.claim.id), values: satisfying.map((c) => c.value) };
 }
@@ -148,6 +150,17 @@ export function evaluateRequirement(req: Requirement, allClaims: Claim[], ctx: E
 export function evaluateCreator(spec: BriefSpec, claims: Claim[], ctx: EngineContext): CreatorEvaluation {
   const results = spec.requirements.map((r) => evaluateRequirement(r, claims, ctx));
   const hard = spec.requirements.map((r, i) => ({ r, res: results[i] })).filter((x) => x.r.hard);
+  // Corroboración: si otro requisito duro ya quedó probado con todas sus evidencias, a los demás les basta una evidencia
+  // fuerte aunque pidieran dos. Una mamá con la edad de sus hijos probada no necesita dos posts de "día a día": con uno basta.
+  const proven = hard.some((x) => x.res.verdict === "PASS");
+  if (proven) {
+    for (const x of hard) {
+      if (x.res.verdict === "UNKNOWN" && (x.res.evidence_count ?? 0) >= 1 && x.r.min_evidence >= 2) {
+        x.res.verdict = "PASS";
+        x.res.reason = `${x.res.evidence_count} evidencia(s), corroborada por otro requisito duro ya probado`;
+      }
+    }
+  }
   let overall: Verdict = "PASS";
   if (hard.some((x) => x.res.verdict === "FAIL")) overall = "FAIL";
   else if (hard.some((x) => x.res.verdict === "UNKNOWN")) overall = "UNKNOWN";

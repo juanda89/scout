@@ -109,6 +109,16 @@ describe("evaluateCreator", () => {
       { id: "aud", predicate: "audience.gender_female_pct", rule: { op: "gte", value: 60 }, hard: false, weight: 0.4 },
     ],
   });
+  it("corroboración: con un duro probado, otro duro con una sola evidencia fuerte pasa", () => {
+    const spec = BriefSpecSchema.parse({ title: "t", requirements: [
+      { id: "edad", predicate: "child.age_mention", rule: { op: "between", value: [0, 60], derived: "child.age_months" }, hard: true, min_evidence: 1, max_evidence_age_days: 600 },
+      { id: "rutina", predicate: "content.category", rule: { op: "any_of", value: ["maternidad"] }, hard: true, min_evidence: 2 },
+    ] });
+    const age = claim({ predicate_key: "child.age_mention", value: { amount: 8, unit: "months" }, observed_at: new Date("2026-09-01T00:00:00Z"), evidence_content_id: "p1" });
+    const one = claim({ predicate_key: "content.category", value: "maternidad", confidence: 0.95, evidence_content_id: "p2" });
+    expect(evaluateCreator(spec, [age, one], ctx).overall).toBe("PASS");       // edad probada + una evidencia de rutina
+    expect(evaluateCreator(spec, [one], ctx).overall).toBe("UNKNOWN");         // sin el duro probado, sigue exigiendo dos
+  });
   it("overall PASS y score ponderado de blandos", () => {
     const claims = [
       claim({ predicate_key: "child.age_mention", value: { amount: 20, unit: "months" }, observed_at: new Date("2026-09-01T00:00:00Z") }),
